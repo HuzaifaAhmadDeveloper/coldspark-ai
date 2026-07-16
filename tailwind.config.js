@@ -3,12 +3,8 @@ export default {
     content: [
         "./resources/**/*.blade.php",
         "./resources/**/*.js",
-        "./resources/views/**/*.blade.php",
         "./app/Livewire/**/*.php",
         "./app/**/*.php",
-    ],
-    safelist: [
-        {pattern: /.*/}
     ],
     theme: {
         extend: {

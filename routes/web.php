@@ -2,6 +2,9 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Response;
 
+// Stripe webhook (no auth middleware - must be outside)
+Route::post('/stripe/webhook', [App\Http\Controllers\WebhookController::class, 'handleWebhook']);
+
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
@@ -19,6 +22,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/bulk', function () {
         return view('bulk');
     })->name('bulk');
+
+    Route::get('/team', function () {
+        return view('team');
+    })->name('team');
 
     // Sample CSV download
     Route::get('/bulk/sample', function () {
@@ -43,7 +50,7 @@ Route::middleware(['auth'])->group(function () {
             $csv .= implode(',', array_map(
                 fn($v) => '"' . str_replace('"', '""', $v) . '"',
                 [
-                    $s->prospect->name   ?? '',
+                    $s->prospect->name    ?? '',
                     $s->prospect->company ?? '',
                     $s->prospect->role    ?? '',
                     $s->subject1, $s->subject2,
@@ -57,6 +64,13 @@ Route::middleware(['auth'])->group(function () {
             'Content-Disposition' => 'attachment; filename="coldspark_export.csv"',
         ]);
     })->name('bulk.export');
+
+    // Billing routes
+    Route::get('/billing', [App\Http\Controllers\BillingController::class, 'plans'])->name('billing.plans');
+    Route::post('/billing/checkout', [App\Http\Controllers\BillingController::class, 'checkout'])->name('billing.checkout');
+    Route::get('/billing/success', [App\Http\Controllers\BillingController::class, 'success'])->name('billing.success');
+    Route::post('/billing/cancel', [App\Http\Controllers\BillingController::class, 'cancel'])->name('billing.cancel');
+    Route::get('/billing/portal', [App\Http\Controllers\BillingController::class, 'portal'])->name('billing.portal');
 });
 
 require __DIR__.'/auth.php';

@@ -9,17 +9,25 @@
     <span class="text-sm bg-gray-800 border border-gray-700 px-3 py-1 rounded-lg">
         Credits: <span class="text-yellow-400 font-bold">{{ $credits }}</span>
     </span>
-    <a href="{{ route('dashboard') }}" 
+    <a href="{{ route('dashboard') }}"
         class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('dashboard') ? 'bg-blue-900 text-blue-300' : 'text-gray-400 hover:text-white' }}">
         ✉ Generator
     </a>
-    <a href="{{ route('bulk') }}" 
+    <a href="{{ route('bulk') }}"
         class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('bulk') ? 'bg-purple-900 text-purple-300' : 'text-gray-400 hover:text-white' }}">
         📂 Bulk CSV
     </a>
-    <a href="{{ route('history') }}" 
+    <a href="{{ route('history') }}"
         class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('history') ? 'bg-green-900 text-green-300' : 'text-gray-400 hover:text-white' }}">
         🕐 History
+    </a>
+    <a href="{{ route('team') }}"
+    class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('team') ? 'bg-indigo-900 text-indigo-300' : 'text-gray-400 hover:text-white' }}">
+    👥 Team
+</a>
+    <a href="{{ route('billing.plans') }}"
+        class="text-sm px-3 py-1 rounded-lg bg-yellow-900 text-yellow-400 hover:bg-yellow-800 transition-all font-semibold">
+        ⚡ Upgrade
     </a>
     <form method="POST" action="{{ route('logout') }}">
         @csrf
