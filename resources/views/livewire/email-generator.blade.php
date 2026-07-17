@@ -21,6 +21,10 @@
         class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('history') ? 'bg-green-900 text-green-300' : 'text-gray-400 hover:text-white' }}">
         🕐 History
     </a>
+    <a href="{{ route('warmup') }}"
+    class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('warmup') ? 'bg-orange-900 text-orange-300' : 'text-gray-400 hover:text-white' }}">
+    🔥 Warmup
+</a>
     <a href="{{ route('team') }}"
     class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('team') ? 'bg-indigo-900 text-indigo-300' : 'text-gray-400 hover:text-white' }}">
     👥 Team

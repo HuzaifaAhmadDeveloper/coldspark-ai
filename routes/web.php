@@ -27,6 +27,10 @@ Route::middleware(['auth'])->group(function () {
         return view('team');
     })->name('team');
 
+    Route::get('/warmup', function () {
+        return view('warmup');
+    })->name('warmup');
+
     // Sample CSV download
     Route::get('/bulk/sample', function () {
         $csv  = "name,company,role,industry,pain_point,note\n";

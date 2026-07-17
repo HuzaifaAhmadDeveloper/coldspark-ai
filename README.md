@@ -1,22 +1,26 @@
 ✅ Phase 1 — Core
-   ✅ AI Email Generator (Groq API)
-   ✅ 3-email sequence in one call
-   ✅ 4 writing styles
+   ✅ AI Email Generator (Groq API - Free)
+   ✅ 3-email sequence (Opener + 2 Follow-ups)
+   ✅ 4 writing styles (Direct, Friendly, Formal, Witty)
    ✅ Subject A/B testing
 
-✅ Phase 2 — Workflow  
-   ✅ Inline save to history
+✅ Phase 2 — Workflow
+   ✅ Inline editing & save
    ✅ Regenerate single email
    ✅ Search & view history
    ✅ Delete sequences
 
 ✅ Phase 3 — Monetization
    ✅ Stripe Billing (Test Mode)
-   ✅ 3 Plans (Basic/Pro/Business)
-   ✅ Credits system
-   ✅ Payment success page
+   ✅ 3 Plans — Basic ($0), Pro ($9), Business ($29)
+   ✅ Automatic credit allocation
+   ✅ Stripe Webhook integration
+   ✅ Billing portal
 
-✅ Phase 4 Partial
-   ✅ Bulk CSV upload (50 prospects)
+✅ Phase 4 — Scale
+   ✅ CSV Bulk Upload (50 prospects)
    ✅ Export CSV
-   ✅ Sample CSV download
+   ✅ Team Sharing (Create/Join/Invite Code)
+   ✅ Reply Tracking (Positive/Negative/Neutral)
+   ✅ Reply Rate Statistics
+   ✅ GitHub — Complete codebase
