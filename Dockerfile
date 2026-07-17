@@ -1,11 +1,11 @@
-FROM php:8.3-apache
+FROM php:8.3-cli
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git curl libpng-dev libonig-dev libxml2-dev zip unzip \
-    libzip-dev nodejs npm \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip intl \
-    && apt-get clean
+    git curl libpng-dev libonig-dev libxml2-dev \
+    zip unzip libzip-dev nodejs npm \
+    && docker-php-ext-install pdo_mysql mbstring bcmath gd zip \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -16,18 +16,19 @@ WORKDIR /var/www/html
 # Copy files
 COPY . .
 
-# Install dependencies
+# Set env for composer
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
+
+# Install Node dependencies and build assets
 RUN npm ci && npm run build
 
-# Apache config
-RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
-RUN a2enmod rewrite
+# Storage permissions
+RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views \
+    && chmod -R 777 storage bootstrap/cache
 
-# Permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage
+EXPOSE 8000
 
-EXPOSE 80
-
-CMD php artisan migrate --force && apache2-foreground
+CMD php artisan config:cache && php artisan route:cache && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT
