@@ -177,15 +177,23 @@
                         <span class="text-gray-600 text-xs ml-3">{{ $meta[1] }}</span>
                     </div>
                     <div class="flex gap-2">
-                        <button wire:click="regenerateEmail({{ $num }})"
-                            class="text-xs px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-all">
-                            🔄 Redo
-                        </button>
-                        <button onclick="copyText('{{ addslashes($result[$key] ?? '') }}')"
-                            class="text-xs px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-800 text-blue-300 transition-all">
-                            Copy
-                        </button>
-                    </div>
+    <button wire:click="regenerateEmail({{ $num }})"
+        class="text-xs px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-all">
+        🔄 Redo
+    </button>
+    <button onclick="copyText('{{ addslashes($result[$key] ?? '') }}')"
+        class="text-xs px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-800 text-blue-300 transition-all">
+        📋 Copy
+    </button>
+    <a href="#" onclick="openGmail('{{ $selectedSubject === 0 ? addslashes($result['subject1'] ?? '') : addslashes($result['subject2'] ?? '') }}', '{{ addslashes($result[$key] ?? '') }}'); return false;"
+        class="text-xs px-3 py-1 rounded-lg bg-red-900 hover:bg-red-800 text-red-300 transition-all">
+        📧 Gmail
+    </a>
+    <a href="#" onclick="openOutlook('{{ $selectedSubject === 0 ? addslashes($result['subject1'] ?? '') : addslashes($result['subject2'] ?? '') }}', '{{ addslashes($result[$key] ?? '') }}'); return false;"
+        class="text-xs px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-700 text-blue-200 transition-all">
+        📨 Outlook
+    </a>
+</div>
                 </div>
                 <div class="p-5">
                     <pre class="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap font-sans">{{ $result[$key] ?? '' }}</pre>
@@ -212,7 +220,21 @@
 <script>
 function copyText(text) {
     navigator.clipboard.writeText(text).then(() => {
-        alert('Copied!');
+        alert('Copied to clipboard!');
     });
+}
+
+function openGmail(subject, body) {
+    const encodedSubject = encodeURIComponent(subject);
+    const encodedBody    = encodeURIComponent(body);
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodedSubject}&body=${encodedBody}`;
+    window.open(gmailUrl, '_blank');
+}
+
+function openOutlook(subject, body) {
+    const encodedSubject = encodeURIComponent(subject);
+    const encodedBody    = encodeURIComponent(body);
+    const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?subject=${encodedSubject}&body=${encodedBody}`;
+    window.open(outlookUrl, '_blank');
 }
 </script>

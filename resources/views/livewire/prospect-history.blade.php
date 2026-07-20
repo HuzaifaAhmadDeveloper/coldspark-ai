@@ -7,8 +7,10 @@
         <div class="flex items-center gap-4">
             <a href="{{ route('dashboard') }}" class="text-sm px-3 py-1 rounded-lg text-gray-400 hover:text-white">✉ Generator</a>
             <a href="{{ route('bulk') }}" class="text-sm px-3 py-1 rounded-lg text-gray-400 hover:text-white">📂 Bulk CSV</a>
+            <a href="{{ route('crm') }}" class="text-sm px-3 py-1 rounded-lg text-gray-400 hover:text-white">🔗 CRM</a>
             <a href="{{ route('history') }}" class="text-sm px-3 py-1 rounded-lg bg-green-900 text-green-300">🕐 History</a>
             <a href="{{ route('team') }}" class="text-sm px-3 py-1 rounded-lg text-gray-400 hover:text-white">👥 Team</a>
+            <a href="{{ route('warmup') }}" class="text-sm px-3 py-1 rounded-lg text-gray-400 hover:text-white">🔥 Warmup</a>
             <a href="{{ route('billing.plans') }}" class="text-sm px-3 py-1 rounded-lg bg-yellow-900 text-yellow-400 font-semibold">⚡ Upgrade</a>
             <form method="POST" action="{{ route('logout') }}">@csrf
                 <button class="text-sm px-3 py-1 rounded-lg bg-red-900 text-red-400 hover:bg-red-800">Logout</button>
@@ -40,7 +42,6 @@
         <div class="flex justify-between items-center mb-6 gap-4">
             <h1 class="text-2xl font-bold">Sequence History</h1>
             <div class="flex gap-3">
-                <!-- Filter Buttons -->
                 <div class="flex gap-2">
                     @foreach(['all' => 'All', 'replied' => '✓ Replied', 'no_reply' => '⏳ No Reply'] as $val => $label)
                     <button wire:click="$set('filterReply', '{{ $val }}')"
@@ -63,7 +64,6 @@
                     <span class="text-gray-500 text-sm">{{ $viewing->created_at->format('M d, Y') }} · {{ ucfirst($viewing->style) }} style</span>
                 </div>
                 <div class="flex gap-2">
-                    <!-- Reply Status Badge -->
                     @if($viewing->replied)
                     <span class="px-3 py-1 rounded-full text-xs font-bold
                         {{ $viewing->reply_status === 'positive' ? 'bg-green-900 text-green-400' :
@@ -142,9 +142,26 @@
                 <div class="text-sm text-gray-300">B: {{ $viewing->subject2 }}</div>
             </div>
 
+            <!-- EMAIL CARDS WITH GMAIL + OUTLOOK BUTTONS -->
             @foreach(['email1' => 'EMAIL 1 — OPENER', 'email2' => 'EMAIL 2 — FOLLOW-UP', 'email3' => 'EMAIL 3 — FINAL'] as $key => $label)
             <div class="bg-gray-800 rounded-xl p-4 mb-3">
-                <div class="text-blue-400 text-xs font-bold mb-2">{{ $label }}</div>
+                <div class="flex justify-between items-center mb-2">
+                    <div class="text-blue-400 text-xs font-bold">{{ $label }}</div>
+                    <div class="flex gap-2">
+                        <button onclick="navigator.clipboard.writeText(`{{ addslashes($viewing->$key) }}`).then(() => alert('Copied!'))"
+                            class="text-xs px-3 py-1 bg-blue-900 hover:bg-blue-800 text-blue-300 rounded-lg transition-all">
+                            📋 Copy
+                        </button>
+                        <a href="#" onclick="openGmail('{{ addslashes($viewing->subject1) }}', '{{ addslashes($viewing->$key) }}'); return false;"
+                            class="text-xs px-3 py-1 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-all">
+                            📧 Gmail
+                        </a>
+                        <a href="#" onclick="openOutlook('{{ addslashes($viewing->subject1) }}', '{{ addslashes($viewing->$key) }}'); return false;"
+                            class="text-xs px-3 py-1 bg-blue-900 hover:bg-blue-700 text-blue-200 rounded-lg transition-all">
+                            📨 Outlook
+                        </a>
+                    </div>
+                </div>
                 <pre class="text-gray-300 text-sm whitespace-pre-wrap font-sans">{{ $viewing->$key }}</pre>
             </div>
             @endforeach
@@ -187,4 +204,15 @@
 
         <div class="mt-4">{{ $sequences->links() }}</div>
     </div>
+
+    <script>
+    function openGmail(subject, body) {
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.open(gmailUrl, '_blank');
+    }
+    function openOutlook(subject, body) {
+        const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.open(outlookUrl, '_blank');
+    }
+    </script>
 </div>

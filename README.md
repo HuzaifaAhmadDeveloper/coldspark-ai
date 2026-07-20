@@ -19,8 +19,11 @@
 
 ✅ Phase 4 — Scale
    ✅ CSV Bulk Upload (50 prospects)
-   ✅ Export CSV
+   ✅ CRM Import (HubSpot, Salesforce, Pipedrive, Zoho)
    ✅ Team Sharing (Create/Join/Invite Code)
    ✅ Reply Tracking (Positive/Negative/Neutral)
    ✅ Reply Rate Statistics
+   ✅ Email Warmup Guide
    ✅ GitHub — Complete codebase
+
+✅ Deployed on Railway.app
