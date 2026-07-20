@@ -32,4 +32,6 @@ CMD php artisan config:clear && \
     php artisan route:cache && \
     php artisan view:cache && \
     php artisan migrate --force && \
+    mkdir -p storage/app/livewire-tmp && \
+    chmod -R 777 storage && \
     php artisan serve --host=0.0.0.0 --port=$PORT
