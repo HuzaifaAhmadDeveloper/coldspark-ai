@@ -22,6 +22,8 @@
    ✅ CRM Import (HubSpot, Salesforce, Pipedrive, Zoho)
    ✅ Team Sharing (Create/Join/Invite Code)
    ✅ Reply Tracking (Positive/Negative/Neutral)
+   ✅ Gmail Integration
+   ✅ Outlook Integration
    ✅ Reply Rate Statistics
    ✅ Email Warmup Guide
    ✅ GitHub — Complete codebase
