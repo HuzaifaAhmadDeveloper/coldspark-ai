@@ -6,11 +6,18 @@
             <span class="font-bold text-lg">ColdSpark <span class="text-blue-400">AI</span></span>
         </div>
         <div class="flex items-center gap-4">
-            <span class="text-sm text-gray-400">Credits: <span class="text-yellow-400 font-bold">{{ $credits }}</span></span>
-            <a href="{{ route('dashboard') }}" class="text-sm text-gray-400 hover:text-white">← Generator</a>
-            <a href="{{ route('history') }}" class="text-sm text-gray-400 hover:text-white">History</a>
+            <span class="text-sm bg-gray-800 border border-gray-700 px-3 py-1 rounded-lg">
+                Credits: <span class="text-yellow-400 font-bold">{{ $credits }}</span>
+            </span>
+            <a href="{{ route('dashboard') }}" class="text-sm px-3 py-1 rounded-lg text-gray-400 hover:text-white">✉ Generator</a>
+            <a href="{{ route('bulk') }}" class="text-sm px-3 py-1 rounded-lg bg-purple-900 text-purple-300">📂 Bulk CSV</a>
+            <a href="{{ route('crm') }}" class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('crm') ? 'bg-indigo-900 text-indigo-300' : 'text-gray-400 hover:text-white' }}">🔗 CRM</a>
+            <a href="{{ route('history') }}" class="text-sm px-3 py-1 rounded-lg text-gray-400 hover:text-white">🕐 History</a>
+            <a href="{{ route('team') }}" class="text-sm px-3 py-1 rounded-lg text-gray-400 hover:text-white">👥 Team</a>
+            <a href="{{ route('warmup') }}" class="text-sm px-3 py-1 rounded-lg text-gray-400 hover:text-white">🔥 Warmup</a>
+            <a href="{{ route('billing.plans') }}" class="text-sm px-3 py-1 rounded-lg bg-yellow-900 text-yellow-400 font-semibold">⚡ Upgrade</a>
             <form method="POST" action="{{ route('logout') }}">@csrf
-                <button class="text-sm text-gray-400 hover:text-white">Logout</button>
+                <button class="text-sm px-3 py-1 rounded-lg bg-red-900 text-red-400 hover:bg-red-800">Logout</button>
             </form>
         </div>
     </nav>
