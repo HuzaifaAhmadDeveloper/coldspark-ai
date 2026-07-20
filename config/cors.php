@@ -1,2 +1,19 @@
-'paths' => ['api/*', 'sanctum/csrf-cookie', 'livewire/*'],
-'allowed_origins' => ['https://coldspark-ai-production.up.railway.app'],
+<?php
+
+return [
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'livewire/*'],
+
+    'allowed_methods' => ['*'],
+
+    'allowed_origins' => ['*'],
+
+    'allowed_origins_patterns' => [],
+
+    'allowed_headers' => ['*'],
+
+    'exposed_headers' => [],
+
+    'max_age' => 0,
+
+    'supports_credentials' => true,
+];
