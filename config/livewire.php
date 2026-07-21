@@ -32,12 +32,11 @@ return [
 
     'view_path' => resource_path('views/livewire'),
 
-    // ✅ UPDATED
     'temporary_file_upload' => [
         'disk'       => 'local',
         'rules'      => ['required', 'file', 'max:51200'],
         'directory'  => 'livewire-tmp',
-        'middleware' => 'throttle:60,1',
+        'middleware' => null,
         'preview_mimes' => [
             'png', 'gif', 'bmp', 'svg', 'wav', 'mp4',
             'mov', 'avi', 'wmv', 'mp3', 'm4a',
