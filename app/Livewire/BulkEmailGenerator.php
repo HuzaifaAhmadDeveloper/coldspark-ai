@@ -6,13 +6,10 @@ use App\Models\Sequence;
 use App\Services\GroqService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
-use Livewire\WithFileUploads;
 
 class BulkEmailGenerator extends Component
 {
-    use WithFileUploads;
-
-    public $csvFile;
+    // Remove WithFileUploads
     public string $style      = 'direct';
     public string $offer      = '';
     public string $value_prop = '';
@@ -26,17 +23,16 @@ class BulkEmailGenerator extends Component
     public int    $failed     = 0;
     public string $error      = '';
     public ?int   $jobId      = null;
+    public string $csvData    = ''; // CSV data from browser
 
-    public function updatedCsvFile(): void
+    public function loadCsvData(string $csvContent): void
     {
-        $this->validate(['csvFile' => 'required|mimes:csv,txt|max:2048']);
         $this->preview = [];
         $this->results = [];
         $this->done    = false;
         $this->error   = '';
 
-        $path    = $this->csvFile->getRealPath();
-        $rows    = array_map('str_getcsv', file($path));
+        $rows    = array_map('str_getcsv', explode("\n", trim($csvContent)));
         $headers = array_map('strtolower', array_map('trim', $rows[0]));
 
         $count = 0;
@@ -58,8 +54,14 @@ class BulkEmailGenerator extends Component
 
     public function process(): void
     {
-        if (empty($this->preview)) { $this->error = 'Please upload a CSV file first.'; return; }
-        if (empty($this->offer) || empty($this->value_prop)) { $this->error = 'Please fill offer and value proposition.'; return; }
+        if (empty($this->preview)) {
+            $this->error = 'Please upload a CSV file first.';
+            return;
+        }
+        if (empty($this->offer) || empty($this->value_prop)) {
+            $this->error = 'Please fill offer and value proposition.';
+            return;
+        }
 
         $user = Auth::user();
         if ($user->getCredits() < $this->total) {
@@ -75,7 +77,7 @@ class BulkEmailGenerator extends Component
 
         $job = BulkJob::create([
             'user_id'    => $user->id,
-            'filename'   => $this->csvFile->getClientOriginalName(),
+            'filename'   => 'upload.csv',
             'total'      => $this->total,
             'status'     => 'processing',
             'style'      => $this->style,

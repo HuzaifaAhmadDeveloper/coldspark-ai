@@ -20,6 +20,26 @@
                 <button class="text-sm px-3 py-1 rounded-lg bg-red-900 text-red-400 hover:bg-red-800">Logout</button>
             </form>
         </div>
+        <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('csvFileInput');
+    if (input) {
+        input.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('dropzone-text').textContent = file.name;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csvContent = e.target.result;
+                @this.call('loadCsvData', csvContent);
+            };
+            reader.readAsText(file);
+        });
+    }
+});
+</script>
     </nav>
 
     <div class="max-w-6xl mx-auto px-4 py-8">
@@ -48,24 +68,23 @@
                 </div>
 
                 <!-- UPLOAD -->
-                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                    <h2 class="text-blue-400 font-bold text-xs tracking-widest mb-3">UPLOAD CSV</h2>
-                    <label class="block w-full cursor-pointer">
-                        <div class="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center hover:border-blue-500 transition-all">
-                            <div class="text-3xl mb-2">📁</div>
-                            <div class="text-sm text-gray-400">Click to upload CSV</div>
-                            <div class="text-xs text-gray-600 mt-1">Max 50 prospects, 2MB</div>
-                        </div>
-                        <input wire:model="csvFile" type="file" accept=".csv" class="hidden">
-                    </label>
-                    @error('csvFile') <p class="text-red-400 text-xs mt-2">{{ $message }}</p> @enderror
+<div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+    <h2 class="text-blue-400 font-bold text-xs tracking-widest mb-3">UPLOAD CSV</h2>
+    <label class="block w-full cursor-pointer">
+        <div class="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center hover:border-blue-500 transition-all" id="dropzone">
+            <div class="text-3xl mb-2">📁</div>
+            <div class="text-sm text-gray-400" id="dropzone-text">Click to upload CSV</div>
+            <div class="text-xs text-gray-600 mt-1">Max 50 prospects, 2MB</div>
+        </div>
+        <input type="file" accept=".csv,.txt" class="hidden" id="csvFileInput">
+    </label>
 
-                    @if($total > 0)
-                    <div class="mt-3 bg-green-900 border border-green-700 rounded-xl px-4 py-2 text-green-400 text-sm text-center">
-                        ✓ {{ $total }} prospects loaded
-                    </div>
-                    @endif
-                </div>
+    @if($total > 0)
+    <div class="mt-3 bg-green-900 border border-green-700 rounded-xl px-4 py-2 text-green-400 text-sm text-center">
+        ✓ {{ $total }} prospects loaded
+    </div>
+    @endif
+</div>
 
                 <!-- YOUR OFFER -->
                 <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
