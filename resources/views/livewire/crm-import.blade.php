@@ -76,25 +76,24 @@
                 </div>
 
                 <!-- UPLOAD -->
-                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                    <h2 class="text-blue-400 font-bold text-xs tracking-widest mb-3">UPLOAD FILE</h2>
-                    <label class="block cursor-pointer">
-                        <div class="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center hover:border-blue-500 transition-all">
-                            <div class="text-3xl mb-2">📁</div>
-                            <div class="text-sm text-gray-400">Click to upload CSV</div>
-                            <div class="text-xs text-gray-600 mt-1">Max 100 contacts, 5MB</div>
-                        </div>
-                        <input wire:model="file" type="file" accept=".csv,.txt" class="hidden">
-                    </label>
-                    @error('file') <p class="text-red-400 text-xs mt-2">{{ $message }}</p> @enderror
+<div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+    <h2 class="text-blue-400 font-bold text-xs tracking-widest mb-3">UPLOAD FILE</h2>
+    <label class="block cursor-pointer">
+        <div class="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center hover:border-blue-500 transition-all">
+            <div class="text-3xl mb-2">📁</div>
+            <div class="text-sm text-gray-400" id="crm-dropzone-text">Click to upload CSV</div>
+            <div class="text-xs text-gray-600 mt-1">Max 100 contacts, 5MB</div>
+        </div>
+        <input type="file" accept=".csv,.txt" class="hidden" id="crmFileInput">
+    </label>
+    @error('file') <p class="text-red-400 text-xs mt-2">{{ $message }}</p> @enderror
 
-                    @if($total > 0)
-                    <div class="mt-3 bg-green-900 border border-green-700 rounded-xl px-4 py-2 text-green-400 text-sm text-center">
-                        ✓ {{ $total }} contacts detected
-                    </div>
-                    @endif
-                </div>
-
+    @if($total > 0)
+    <div class="mt-3 bg-green-900 border border-green-700 rounded-xl px-4 py-2 text-green-400 text-sm text-center">
+        ✓ {{ $total }} contacts detected
+    </div>
+    @endif
+</div>
                 @if($error)
                 <div class="bg-red-900 border border-red-700 rounded-xl p-4 text-red-300 text-sm">{{ $error }}</div>
                 @endif
@@ -215,4 +214,21 @@
             </div>
         </div>
     </div>
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('crmFileInput');
+    if (input) {
+        input.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('crm-dropzone-text').textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                @this.call('loadCsvData', ev.target.result, file.name);
+            };
+            reader.readAsText(file);
+        });
+    }
+});
+</script>
 </div>

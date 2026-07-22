@@ -4,13 +4,10 @@ use App\Models\CrmImport as CrmImportModel;
 use App\Models\Prospect;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
-use Livewire\WithFileUploads;
 
 class CrmImport extends Component
 {
-    use WithFileUploads;
-
-    public $file;
+    // No WithFileUploads
     public string $crmType    = 'hubspot';
     public array  $preview    = [];
     public array  $imported   = [];
@@ -22,48 +19,48 @@ class CrmImport extends Component
     public int    $importedCount = 0;
     public int    $skippedCount  = 0;
     public array  $history    = [];
+    public string $fileName   = '';
 
-    // CRM field mappings
     private array $fieldMaps = [
         'hubspot' => [
-            'name'      => ['First Name', 'Last Name', 'firstname', 'lastname', 'Contact Name', 'name'],
-            'company'   => ['Company', 'company', 'Company Name'],
-            'role'      => ['Job Title', 'jobtitle', 'Title', 'title'],
-            'industry'  => ['Industry', 'industry'],
-            'email'     => ['Email', 'email', 'Email Address'],
-            'phone'     => ['Phone Number', 'phone', 'Phone'],
+            'name'    => ['First Name', 'Last Name', 'firstname', 'lastname', 'Contact Name', 'name'],
+            'company' => ['Company', 'company', 'Company Name'],
+            'role'    => ['Job Title', 'jobtitle', 'Title', 'title'],
+            'industry'=> ['Industry', 'industry'],
+            'email'   => ['Email', 'email', 'Email Address'],
+            'phone'   => ['Phone Number', 'phone', 'Phone'],
         ],
         'salesforce' => [
-            'name'      => ['Name', 'Full Name', 'FirstName', 'LastName'],
-            'company'   => ['Account Name', 'Company'],
-            'role'      => ['Title', 'Job Title'],
-            'industry'  => ['Industry'],
-            'email'     => ['Email'],
-            'phone'     => ['Phone', 'Mobile'],
+            'name'    => ['Name', 'Full Name', 'FirstName', 'LastName'],
+            'company' => ['Account Name', 'Company'],
+            'role'    => ['Title', 'Job Title'],
+            'industry'=> ['Industry'],
+            'email'   => ['Email'],
+            'phone'   => ['Phone', 'Mobile'],
         ],
         'pipedrive' => [
-            'name'      => ['Name', 'Contact Name', 'Person Name'],
-            'company'   => ['Organization', 'Company', 'Organization Name'],
-            'role'      => ['Job Title', 'Title'],
-            'industry'  => ['Industry', 'Label'],
-            'email'     => ['Email', 'email'],
-            'phone'     => ['Phone', 'phone'],
+            'name'    => ['Name', 'Contact Name', 'Person Name'],
+            'company' => ['Organization', 'Company', 'Organization Name'],
+            'role'    => ['Job Title', 'Title'],
+            'industry'=> ['Industry', 'Label'],
+            'email'   => ['Email', 'email'],
+            'phone'   => ['Phone', 'phone'],
         ],
         'zoho' => [
-            'name'      => ['First Name', 'Last Name', 'Full Name'],
-            'company'   => ['Account Name', 'Company'],
-            'role'      => ['Title', 'Designation'],
-            'industry'  => ['Industry'],
-            'email'     => ['Email', 'Email Opt Out'],
-            'phone'     => ['Phone', 'Mobile'],
+            'name'    => ['First Name', 'Last Name', 'Full Name'],
+            'company' => ['Account Name', 'Company'],
+            'role'    => ['Title', 'Designation'],
+            'industry'=> ['Industry'],
+            'email'   => ['Email'],
+            'phone'   => ['Phone', 'Mobile'],
         ],
         'csv' => [
-            'name'      => ['name', 'full_name', 'contact_name', 'Name'],
-            'company'   => ['company', 'company_name', 'organization', 'Company'],
-            'role'      => ['role', 'title', 'job_title', 'position', 'Role'],
-            'industry'  => ['industry', 'sector', 'Industry'],
-            'email'     => ['email', 'email_address', 'Email'],
-            'phone'     => ['phone', 'phone_number', 'mobile', 'Phone'],
+            'name'    => ['name', 'full_name', 'contact_name', 'Name'],
+            'company' => ['company', 'company_name', 'organization', 'Company'],
+            'role'    => ['role', 'title', 'job_title', 'position', 'Role'],
+            'industry'=> ['industry', 'sector', 'Industry'],
+            'email'   => ['email', 'email_address', 'Email'],
+            'phone'   => ['phone', 'phone_number', 'mobile', 'Phone'],
         ],
     ];
 
@@ -73,22 +70,21 @@ class CrmImport extends Component
             ->latest()->take(5)->get()->toArray();
     }
 
-    public function updatedFile(): void
+    public function loadCsvData(string $csvContent, string $fileName = 'upload.csv'): void
     {
-        $this->validate(['file' => 'required|mimes:csv,txt|max:5120']);
-        $this->preview    = [];
-        $this->error      = '';
-        $this->done       = false;
+        $this->preview  = [];
+        $this->error    = '';
+        $this->done     = false;
+        $this->fileName = $fileName;
 
         try {
-            $path    = $this->file->getRealPath();
-            $rows    = array_map('str_getcsv', file($path));
+            $rows    = array_map('str_getcsv', explode("\n", trim($csvContent)));
             $headers = array_map('trim', $rows[0]);
 
             $count = 0;
             foreach (array_slice($rows, 1) as $row) {
                 if (count($row) < 2) continue;
-                $data = array_combine($headers, array_pad($row, count($headers), ''));
+                $data   = array_combine($headers, array_pad($row, count($headers), ''));
                 $mapped = $this->mapFields($data, $headers);
                 if (!empty($mapped['name']) || !empty($mapped['company'])) {
                     $this->preview[] = $mapped;
@@ -118,10 +114,8 @@ class CrmImport extends Component
             }
         }
 
-        // Build full name if split
         if (empty($result['name'])) {
-            $first = '';
-            $last  = '';
+            $first = $last = '';
             foreach ($headers as $h) {
                 if (in_array(strtolower(trim($h)), ['first name','firstname','first_name'])) $first = trim($data[$h] ?? '');
                 if (in_array(strtolower(trim($h)), ['last name','lastname','last_name']))  $last  = trim($data[$h] ?? '');
@@ -149,7 +143,7 @@ class CrmImport extends Component
         $crm = CrmImportModel::create([
             'user_id'        => $user->id,
             'crm_type'       => $this->crmType,
-            'filename'       => $this->file->getClientOriginalName(),
+            'filename'       => $this->fileName ?: 'upload.csv',
             'total_contacts' => $this->total,
             'status'         => 'processing',
         ]);
@@ -172,11 +166,11 @@ class CrmImport extends Component
             }
 
             Prospect::create([
-                'user_id'  => $user->id,
-                'name'     => $contact['name']     ?: ($contact['company'] . ' Contact'),
-                'company'  => $contact['company']  ?: 'Unknown',
-                'role'     => $contact['role']     ?: '',
-                'industry' => $contact['industry'] ?: '',
+                'user_id'       => $user->id,
+                'name'          => $contact['name']    ?: ($contact['company'] . ' Contact'),
+                'company'       => $contact['company'] ?: 'Unknown',
+                'role'          => $contact['role']    ?: '',
+                'industry'      => $contact['industry']?: '',
                 'pain_point'    => '',
                 'personal_note' => !empty($contact['email']) ? 'Email: ' . $contact['email'] : '',
             ]);
