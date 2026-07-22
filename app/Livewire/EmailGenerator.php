@@ -17,6 +17,10 @@ class EmailGenerator extends Component
     public string $offer        = '';
     public string $value_prop   = '';
     public string $cta          = 'Book a 15-min call';
+    public string $sig_name    = '';
+    public string $sig_role    = '';
+    public string $sig_company = '';
+    public string $sig_link    = '';
     public string $style        = 'direct';
     public array  $result       = [];
     public bool   $loading      = false;
@@ -47,7 +51,7 @@ class EmailGenerator extends Component
 
         try {
             $groq = new GroqService();
-            $this->result = $groq->generateSequence([
+          $this->result = $groq->generateSequence([
                 'name'          => $this->name,
                 'company'       => $this->company,
                 'role'          => $this->role,
@@ -58,6 +62,10 @@ class EmailGenerator extends Component
                 'value_prop'    => $this->value_prop,
                 'cta'           => $this->cta,
                 'style'         => $this->style,
+                'sig_name'      => $this->sig_name,
+                'sig_role'      => $this->sig_role,
+                'sig_company'   => $this->sig_company,
+                'sig_link'      => $this->sig_link,
             ]);
 
             if (empty($this->result)) {
@@ -123,7 +131,11 @@ class EmailGenerator extends Component
                 'value_prop'    => $this->value_prop,
                 'cta'           => $this->cta,
                 'style'         => $this->style,
-            ]);
+                'sig_name'      => $this->sig_name,
+                'sig_role'      => $this->sig_role,
+                'sig_company'   => $this->sig_company,
+                'sig_link'      => $this->sig_link,
+                    ]);
             $key = 'email' . $num;
             if (!empty($fresh[$key])) {
                 $this->result[$key] = $fresh[$key];

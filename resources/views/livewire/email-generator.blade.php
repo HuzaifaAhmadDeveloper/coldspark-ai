@@ -130,7 +130,42 @@
             @if($error)
             <div class="bg-red-900 border border-red-700 rounded-xl p-4 text-red-300 text-sm">{{ $error }}</div>
             @endif
+<!-- SIGNATURE -->
+<div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+    <h2 class="text-blue-400 font-bold text-xs tracking-widest mb-4">✍️ EMAIL SIGNATURE</h2>
+    <p class="text-gray-500 text-xs mb-4">Added at the end of every email for a professional touch.</p>
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label class="text-gray-500 text-xs mb-1 block">Your Name</label>
+            <input wire:model="sig_name" type="text" placeholder="Huzaifa Ahmad"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+            <label class="text-gray-500 text-xs mb-1 block">Your Role</label>
+            <input wire:model="sig_role" type="text" placeholder="Business Development Executive"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+            <label class="text-gray-500 text-xs mb-1 block">Company</label>
+            <input wire:model="sig_company" type="text" placeholder="Nimble Web Solutions"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+            <label class="text-gray-500 text-xs mb-1 block">Portfolio / Calendly Link</label>
+            <input wire:model="sig_link" type="text" placeholder="https://calendly.com/huzaifa"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        </div>
+    </div>
 
+    <!-- PREVIEW -->
+    @if($sig_name)
+    <div class="mt-4 bg-gray-800 rounded-xl p-3 border border-gray-700">
+        <div class="text-gray-500 text-xs mb-2">SIGNATURE PREVIEW</div>
+        <div class="text-gray-300 text-sm font-mono whitespace-pre-line">Best regards,
+{{ $sig_name }}{{ $sig_role ? "\n".$sig_role : '' }}{{ $sig_company ? "\n".$sig_company : '' }}{{ $sig_link ? "\n".$sig_link : '' }}</div>
+    </div>
+    @endif
+</div>
             <!-- GENERATE BUTTON -->
             <button wire:click="generate" wire:loading.attr="disabled"
                 class="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all disabled:opacity-50">
