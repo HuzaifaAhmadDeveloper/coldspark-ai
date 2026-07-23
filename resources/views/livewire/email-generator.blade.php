@@ -216,22 +216,28 @@
         class="text-xs px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-all">
         🔄 Redo
     </button>
-    <button onclick="copyText('{{ addslashes($result[$key] ?? '') }}')"
+    <button onclick="copyText(document.getElementById('email-body-{{ $key }}').innerText)"
         class="text-xs px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-800 text-blue-300 transition-all">
         📋 Copy
     </button>
-    <a href="#" onclick="openGmail('{{ $selectedSubject === 0 ? addslashes($result['subject1'] ?? '') : addslashes($result['subject2'] ?? '') }}', '{{ addslashes($result[$key] ?? '') }}'); return false;"
+    <button
+        data-subject="{{ $selectedSubject === 0 ? addslashes($result['subject1'] ?? '') : addslashes($result['subject2'] ?? '') }}"
+        data-body="{{ addslashes($result[$key] ?? '') }}"
+        onclick="openGmail(this.dataset.subject, this.dataset.body)"
         class="text-xs px-3 py-1 rounded-lg bg-red-900 hover:bg-red-800 text-red-300 transition-all">
         📧 Gmail
-    </a>
-    <a href="#" onclick="openOutlook('{{ $selectedSubject === 0 ? addslashes($result['subject1'] ?? '') : addslashes($result['subject2'] ?? '') }}', '{{ addslashes($result[$key] ?? '') }}'); return false;"
+    </button>
+    <button
+        data-subject="{{ $selectedSubject === 0 ? addslashes($result['subject1'] ?? '') : addslashes($result['subject2'] ?? '') }}"
+        data-body="{{ addslashes($result[$key] ?? '') }}"
+        onclick="openOutlook(this.dataset.subject, this.dataset.body)"
         class="text-xs px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-700 text-blue-200 transition-all">
         📨 Outlook
-    </a>
+    </button>
 </div>
                 </div>
                 <div class="p-5">
-                    <div class="text-gray-300 text-sm leading-relaxed font-sans space-y-3">
+                    <div id="email-body-{{ $key }}" class="text-gray-300 text-sm leading-relaxed font-sans space-y-3">
     @foreach(explode("\n\n", $result[$key] ?? '') as $paragraph)
         @if(trim($paragraph))
             <p class="{{ str_starts_with(trim($paragraph), 'Best regards') || str_starts_with(trim($paragraph), 'Hi ') || str_starts_with(trim($paragraph), 'Dear ') ? 'font-medium' : '' }}">
@@ -268,14 +274,22 @@ function copyText(text) {
 }
 
 function openGmail(subject, body) {
-    // Replace \n with proper line breaks for Gmail
-    const formattedBody = body.replace(/\n/g, '\n');
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(formattedBody)}`;
-    window.open(gmailUrl, '_blank');
+    try {
+        const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + 
+            encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+        window.open(gmailUrl, '_blank');
+    } catch(e) {
+        console.error('Gmail error:', e);
+    }
 }
 
 function openOutlook(subject, body) {
-    const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(outlookUrl, '_blank');
+    try {
+        const outlookUrl = 'https://outlook.live.com/mail/0/deeplink/compose?subject=' + 
+            encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+        window.open(outlookUrl, '_blank');
+    } catch(e) {
+        console.error('Outlook error:', e);
+    }
 }
 </script>
