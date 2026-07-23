@@ -162,7 +162,13 @@
                         </a>
                     </div>
                 </div>
-                <pre class="text-gray-300 text-sm whitespace-pre-wrap font-sans">{{ $viewing->$key }}</pre>
+                <div class="text-gray-300 text-sm leading-relaxed font-sans space-y-3">
+    @foreach(explode("\n\n", $viewing->$key ?? '') as $paragraph)
+        @if(trim($paragraph))
+            <p>{!! nl2br(e(trim($paragraph))) !!}</p>
+        @endif
+    @endforeach
+</div>
             </div>
             @endforeach
         </div>

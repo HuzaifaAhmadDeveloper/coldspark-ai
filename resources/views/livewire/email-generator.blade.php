@@ -231,7 +231,15 @@
 </div>
                 </div>
                 <div class="p-5">
-                    <pre class="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap font-sans">{{ $result[$key] ?? '' }}</pre>
+                    <div class="text-gray-300 text-sm leading-relaxed font-sans space-y-3">
+    @foreach(explode("\n\n", $result[$key] ?? '') as $paragraph)
+        @if(trim($paragraph))
+            <p class="{{ str_starts_with(trim($paragraph), 'Best regards') || str_starts_with(trim($paragraph), 'Hi ') || str_starts_with(trim($paragraph), 'Dear ') ? 'font-medium' : '' }}">
+                {!! nl2br(e(trim($paragraph))) !!}
+            </p>
+        @endif
+    @endforeach
+</div>
                 </div>
             </div>
             @endforeach
@@ -260,16 +268,14 @@ function copyText(text) {
 }
 
 function openGmail(subject, body) {
-    const encodedSubject = encodeURIComponent(subject);
-    const encodedBody    = encodeURIComponent(body);
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodedSubject}&body=${encodedBody}`;
+    // Replace \n with proper line breaks for Gmail
+    const formattedBody = body.replace(/\n/g, '\n');
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(formattedBody)}`;
     window.open(gmailUrl, '_blank');
 }
 
 function openOutlook(subject, body) {
-    const encodedSubject = encodeURIComponent(subject);
-    const encodedBody    = encodeURIComponent(body);
-    const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?subject=${encodedSubject}&body=${encodedBody}`;
+    const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(outlookUrl, '_blank');
 }
 </script>

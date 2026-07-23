@@ -36,62 +36,72 @@ class GroqService
     }
 
     private function buildPrompt(array $d): string
-    {
-        // Build signature block
-        $signature = '';
-        if (!empty($d['sig_name'])) {
-            $signature .= "\n\nBest regards,\n";
-            $signature .= $d['sig_name'] . "\n";
-            if (!empty($d['sig_role']))    $signature .= $d['sig_role'] . "\n";
-            if (!empty($d['sig_company'])) $signature .= $d['sig_company'] . "\n";
-            if (!empty($d['sig_link']))    $signature .= $d['sig_link'] . "\n";
-        }
+{
+    $signature = '';
+    if (!empty($d['sig_name'])) {
+        $signature .= "\n\nBest regards,\n";
+        $signature .= $d['sig_name'] . "\n";
+        if (!empty($d['sig_role']))    $signature .= $d['sig_role'] . "\n";
+        if (!empty($d['sig_company'])) $signature .= $d['sig_company'] . "\n";
+        if (!empty($d['sig_link']))    $signature .= $d['sig_link'] . "\n";
+    }
 
-        $sigInstruction = !empty($signature)
-            ? "End every email with this exact professional signature:\n{$signature}\n\nDo NOT add any extra closing after the signature."
-            : "End emails with a simple professional closing like 'Best regards,' followed by the sender's first name.";
+    $sigInstruction = !empty($signature)
+        ? "End every email with this exact professional signature:\n{$signature}"
+        : "End emails with:\nBest regards,\n[Your Name]";
 
-        return <<<PROMPT
-You are an expert cold email copywriter with a 40%+ reply rate. Write a cold outreach email sequence.
+    return <<<PROMPT
+You are an expert cold email copywriter. Write a professional cold outreach sequence.
 
 PROSPECT DETAILS:
 - Name: {$d['name']}
 - Company: {$d['company']}
 - Role/Title: {$d['role']}
 - Industry: {$d['industry']}
-- Pain point / goal: {$d['pain_point']}
+- Pain point: {$d['pain_point']}
 - Personal note: {$d['personal_note']}
 
 SENDER DETAILS:
 - Offer: {$d['offer']}
 - Value proposition: {$d['value_prop']}
 - CTA: {$d['cta']}
+- Style: {$d['style']}
 
-EMAIL STYLE: {$d['style']}
-- direct: Problem → Solution → CTA, bold and concise
-- friendly: Warm, conversational, empathetic tone
-- formal: Professional enterprise tone
-- witty: Clever hook, light humor, memorable
+CRITICAL FORMATTING RULES — YOU MUST FOLLOW THESE:
+1. Each paragraph MUST be separated by a blank line (double newline \\n\\n)
+2. The greeting line must be on its own line: "Dear [Name]," or "Hi [Name],"
+3. After greeting — blank line
+4. Each paragraph — separated by blank line
+5. CTA must be on its own line
+6. Signature must be on its own line after blank line
+7. NEVER write the entire email as one block of text
+8. Maximum 2-3 sentences per paragraph
 
-SIGNATURE INSTRUCTION:
+EXAMPLE FORMAT:
+Hi [Name],
+
+[Opening paragraph - 1-2 sentences specific to prospect.]
+
+[Value paragraph - 1-2 sentences about what you offer.]
+
+[CTA sentence.]
+
 {$sigInstruction}
 
-QUALITY RULES:
-- Make the opening line 100% specific to the prospect
-- Keep emails under 150 words (except formal style)
-- One clear CTA per email
-- Sound human, not like AI wrote it
-- Follow-up 1: New angle, not just "following up"
-- Follow-up 2: Breakup email style
+STYLE GUIDE:
+- direct: Problem → Solution → CTA, concise
+- friendly: Warm, conversational
+- formal: Professional enterprise tone
+- witty: Clever hook, memorable
 
-Return ONLY this JSON (no markdown, no explanation):
+Return ONLY this JSON (no markdown):
 {
-  "subject1": "subject line option A",
-  "subject2": "subject line option B",
-  "email1": "opener email body with signature",
-  "email2": "follow-up #1 body with signature",
-  "email3": "follow-up #2 body with signature"
+  "subject1": "subject line A",
+  "subject2": "subject line B",
+  "email1": "Hi [Name],\\n\\n[paragraph1]\\n\\n[paragraph2]\\n\\n[CTA]\\n\\n[signature]",
+  "email2": "Hi [Name],\\n\\n[paragraph1]\\n\\n[paragraph2]\\n\\n[CTA]\\n\\n[signature]",
+  "email3": "Hi [Name],\\n\\n[paragraph1]\\n\\n[paragraph2]\\n\\n[CTA]\\n\\n[signature]"
 }
 PROMPT;
-    }
+}
 }
