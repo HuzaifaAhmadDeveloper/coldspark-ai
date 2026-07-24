@@ -102,6 +102,41 @@
                 <div class="bg-green-900 border border-green-700 rounded-xl p-4 text-green-300 text-sm">{{ $success }}</div>
                 @endif
 
+                <!-- SIGNATURE -->
+<div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+    <h2 class="text-blue-400 font-bold text-xs tracking-widest mb-3">✍️ EMAIL SIGNATURE</h2>
+    <p class="text-gray-500 text-xs mb-3">Added to emails when generating sequences for imported contacts.</p>
+    <div class="grid grid-cols-2 gap-3">
+        <div>
+            <label class="text-gray-500 text-xs mb-1 block">Your Name</label>
+            <input wire:model="sig_name" type="text" placeholder="Huzaifa Ahmad"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+            <label class="text-gray-500 text-xs mb-1 block">Your Role</label>
+            <input wire:model="sig_role" type="text" placeholder="Business Development Executive"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+            <label class="text-gray-500 text-xs mb-1 block">Company</label>
+            <input wire:model="sig_company" type="text" placeholder="RankSol"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+            <label class="text-gray-500 text-xs mb-1 block">Portfolio / Calendly</label>
+            <input wire:model="sig_link" type="text" placeholder="https://ranksol.com/"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        </div>
+    </div>
+    @if($sig_name)
+    <div class="mt-3 bg-gray-800 rounded-xl p-3 border border-gray-700">
+        <div class="text-gray-500 text-xs mb-1">PREVIEW</div>
+        <div class="text-gray-300 text-xs font-mono whitespace-pre-line">Best regards,
+{{ $sig_name }}{{ $sig_role ? "\n".$sig_role : '' }}{{ $sig_company ? "\n".$sig_company : '' }}{{ $sig_link ? "\n".$sig_link : '' }}</div>
+    </div>
+    @endif
+</div>
+
                 <button wire:click="importContacts" wire:loading.attr="disabled"
                     @if($total === 0 || $processing) disabled @endif
                     class="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 transition-all disabled:opacity-40">

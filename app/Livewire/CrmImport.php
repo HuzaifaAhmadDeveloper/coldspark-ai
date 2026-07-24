@@ -18,6 +18,10 @@ class CrmImport extends Component
     public int    $total      = 0;
     public int    $importedCount = 0;
     public int    $skippedCount  = 0;
+    public string $sig_name    = '';
+    public string $sig_role    = '';
+    public string $sig_company = '';
+    public string $sig_link    = '';
     public array  $history    = [];
     public string $fileName   = '';
 

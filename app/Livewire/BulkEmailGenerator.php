@@ -18,6 +18,10 @@ class BulkEmailGenerator extends Component
     public array  $results    = [];
     public bool   $processing = false;
     public bool   $done       = false;
+    public string $sig_name    = '';
+    public string $sig_role    = '';
+    public string $sig_company = '';
+    public string $sig_link    = '';
     public int    $progress   = 0;
     public int    $total      = 0;
     public int    $failed     = 0;
@@ -92,17 +96,21 @@ class BulkEmailGenerator extends Component
         foreach ($this->preview as $row) {
             try {
                 $result = $groq->generateSequence([
-                    'name'          => $row['name'],
-                    'company'       => $row['company'],
-                    'role'          => $row['role'],
-                    'industry'      => $row['industry'],
-                    'pain_point'    => $row['pain_point'],
-                    'personal_note' => $row['personal_note'],
-                    'offer'         => $this->offer,
-                    'value_prop'    => $this->value_prop,
-                    'cta'           => $this->cta,
-                    'style'         => $this->style,
-                ]);
+                'name'          => $row['name'],
+                'company'       => $row['company'],
+                'role'          => $row['role'],
+                'industry'      => $row['industry'],
+                'pain_point'    => $row['pain_point'],
+                'personal_note' => $row['personal_note'],
+                'offer'         => $this->offer,
+                'value_prop'    => $this->value_prop,
+                'cta'           => $this->cta,
+                'style'         => $this->style,
+                'sig_name'      => $this->sig_name,
+                'sig_role'      => $this->sig_role,
+                'sig_company'   => $this->sig_company,
+                'sig_link'      => $this->sig_link,
+            ]);
 
                 if (!empty($result)) {
                     $prospect = Prospect::firstOrCreate(
