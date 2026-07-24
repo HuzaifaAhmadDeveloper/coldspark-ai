@@ -221,9 +221,38 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </span>
                             </div>
                             @if($r['status']==='success')
-                            <div class="text-xs text-gray-500 mb-1">Subject: {{ $r['subject1'] ?? '' }}</div>
-                            <div class="text-xs text-gray-600 line-clamp-2">{{ Str::limit($r['email1'] ?? '', 120) }}</div>
-                            @endif
+<div class="text-xs text-gray-500 mb-2">Subject: {{ $r['subject1'] ?? '' }}</div>
+<div class="bg-gray-900 rounded-xl p-3 mt-2">
+    <div class="text-blue-400 text-xs font-bold mb-2">EMAIL 1 — OPENER</div>
+    <div class="text-gray-300 text-xs leading-relaxed font-sans space-y-2">
+        @foreach(explode("\n\n", $r['email1'] ?? '') as $paragraph)
+            @if(trim($paragraph))
+                <p>{!! nl2br(e(trim($paragraph))) !!}</p>
+            @endif
+        @endforeach
+    </div>
+</div>
+<div class="bg-gray-900 rounded-xl p-3 mt-2">
+    <div class="text-blue-400 text-xs font-bold mb-2">EMAIL 2 — FOLLOW-UP</div>
+    <div class="text-gray-300 text-xs leading-relaxed font-sans space-y-2">
+        @foreach(explode("\n\n", $r['email2'] ?? '') as $paragraph)
+            @if(trim($paragraph))
+                <p>{!! nl2br(e(trim($paragraph))) !!}</p>
+            @endif
+        @endforeach
+    </div>
+</div>
+<div class="bg-gray-900 rounded-xl p-3 mt-2">
+    <div class="text-blue-400 text-xs font-bold mb-2">EMAIL 3 — FINAL</div>
+    <div class="text-gray-300 text-xs leading-relaxed font-sans space-y-2">
+        @foreach(explode("\n\n", $r['email3'] ?? '') as $paragraph)
+            @if(trim($paragraph))
+                <p>{!! nl2br(e(trim($paragraph))) !!}</p>
+            @endif
+        @endforeach
+    </div>
+</div>
+@endif
                         </div>
                         @endforeach
                     </div>
