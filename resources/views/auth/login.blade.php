@@ -25,7 +25,7 @@
             <h1 class="text-3xl font-bold text-white">
                 Cold<span class="text-blue-400">Spark</span> <span class="text-purple-400">AI</span>
             </h1>
-            <p class="text-gray-500 text-sm mt-2">Personalized cold outreach at scale</p>
+            <p class="text-white text-sm mt-2">Personalized cold outreach at scale</p>
         </div>
 
         <!-- CARD -->
