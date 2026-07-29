@@ -148,18 +148,26 @@
                 <div class="flex justify-between items-center mb-2">
                     <div class="text-blue-400 text-xs font-bold">{{ $label }}</div>
                     <div class="flex gap-2">
-                        <button onclick="navigator.clipboard.writeText(`{{ addslashes($viewing->$key) }}`).then(() => alert('Copied!'))"
-                            class="text-xs px-3 py-1 bg-blue-900 hover:bg-blue-800 text-blue-300 rounded-lg transition-all">
-                            📋 Copy
-                        </button>
-                        <a href="#" onclick="openGmail('{{ addslashes($viewing->subject1) }}', '{{ addslashes($viewing->$key) }}'); return false;"
-                            class="text-xs px-3 py-1 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-all">
-                            📧 Gmail
-                        </a>
-                        <a href="#" onclick="openOutlook('{{ addslashes($viewing->subject1) }}', '{{ addslashes($viewing->$key) }}'); return false;"
-                            class="text-xs px-3 py-1 bg-blue-900 hover:bg-blue-700 text-blue-200 rounded-lg transition-all">
-                            📨 Outlook
-                        </a>
+                        <button
+    data-text="{{ $viewing->$key }}"
+    onclick="navigator.clipboard.writeText(this.dataset.text).then(() => alert('Copied!'))"
+    class="text-xs px-3 py-1 bg-blue-900 hover:bg-blue-800 text-blue-300 rounded-lg transition-all">
+    📋 Copy
+</button>
+<button
+    data-subject="{{ $viewing->subject1 }}"
+    data-body="{{ $viewing->$key }}"
+    onclick="openGmail(this.dataset.subject, this.dataset.body)"
+    class="text-xs px-3 py-1 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-all">
+    📧 Gmail
+</button>
+<button
+    data-subject="{{ $viewing->subject1 }}"
+    data-body="{{ $viewing->$key }}"
+    onclick="openOutlook(this.dataset.subject, this.dataset.body)"
+    class="text-xs px-3 py-1 bg-blue-900 hover:bg-blue-700 text-blue-200 rounded-lg transition-all">
+    📨 Outlook
+</button>
                     </div>
                 </div>
                 <div class="text-gray-300 text-sm leading-relaxed font-sans space-y-3">
@@ -211,14 +219,16 @@
         <div class="mt-4">{{ $sequences->links() }}</div>
     </div>
 
-    <script>
-    function openGmail(subject, body) {
-        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.open(gmailUrl, '_blank');
-    }
-    function openOutlook(subject, body) {
-        const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.open(outlookUrl, '_blank');
-    }
-    </script>
+ <script>
+function openGmail(subject, body) {
+    const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' +
+        encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    window.open(gmailUrl, '_blank');
+}
+function openOutlook(subject, body) {
+    const outlookUrl = 'https://outlook.live.com/mail/0/deeplink/compose?subject=' +
+        encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    window.open(outlookUrl, '_blank');
+}
+</script>
 </div>
