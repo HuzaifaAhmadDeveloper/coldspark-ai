@@ -6,6 +6,7 @@ class VerifyCsrfToken extends Middleware
 {
     protected $except = [
         'stripe/webhook',
+        'webhooks/campaign-events',
         'livewire/upload-file',
         'livewire-*/upload-file',
         'livewire-*/update',

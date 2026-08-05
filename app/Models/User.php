@@ -21,6 +21,7 @@ class User extends Authenticatable
 
     public function prospects() { return $this->hasMany(Prospect::class); }
     public function sequences() { return $this->hasMany(Sequence::class); }
+    public function campaigns() { return $this->hasMany(Campaign::class); }
     public function credit() { return $this->hasOne(Credit::class); }
 
     public function getCredits(): int {

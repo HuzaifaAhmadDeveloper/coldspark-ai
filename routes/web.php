@@ -5,6 +5,16 @@ use Illuminate\Support\Facades\Response;
 // Stripe webhook (no auth middleware - must be outside)
 Route::post('/stripe/webhook', [App\Http\Controllers\WebhookController::class, 'handleWebhook']);
 
+// Campaign email tracking — hit by email clients/prospects directly, must stay public.
+Route::get('/t/o/{token}.gif', [App\Http\Controllers\CampaignTrackingController::class, 'pixel'])
+    ->where('token', '[A-Za-z0-9]+')->name('campaign.track.open');
+Route::get('/t/c/{token}', [App\Http\Controllers\CampaignTrackingController::class, 'click'])
+    ->where('token', '[A-Za-z0-9]+')->name('campaign.track.click');
+
+// ESP bounce/inbound-reply webhook (secret-guarded via ?key=, see .env EMAIL_WEBHOOK_SECRET)
+Route::post('/webhooks/campaign-events', [App\Http\Controllers\CampaignEmailWebhookController::class, 'handle'])
+    ->name('campaign.webhook');
+
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
@@ -34,6 +44,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/crm', function () {
         return view('crm');
     })->name('crm');
+
+    Route::get('/campaigns', function () {
+    return view('campaigns');
+    })->name('campaigns');
+
+    Route::get('/campaign/create', function () {
+        return view('campaign-create');
+    })->name('campaign.create');
 
     // Sample CSV download
     Route::get('/bulk/sample', function () {

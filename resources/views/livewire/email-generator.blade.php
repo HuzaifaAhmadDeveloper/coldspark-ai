@@ -17,6 +17,10 @@
         class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('bulk') ? 'bg-purple-900 text-purple-300' : 'text-gray-400 hover:text-white' }}">
         📂 Bulk CSV
     </a>
+    <a href="{{ route('campaigns') }}"
+    class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('campaigns') ? 'bg-green-900 text-green-300' : 'text-gray-400 hover:text-white' }}">
+    📣 Campaigns
+</a>
     <a href="{{ route('history') }}"
         class="text-sm px-3 py-1 rounded-lg {{ request()->routeIs('history') ? 'bg-green-900 text-green-300' : 'text-gray-400 hover:text-white' }}">
         🕐 History
@@ -203,52 +207,108 @@
             </div>
 
             <!-- EMAIL CARDS -->
-            @foreach(['email1' => ['EMAIL 1 — OPENER', 'Send now'], 'email2' => ['EMAIL 2 — FOLLOW-UP', 'Send day 3'], 'email3' => ['EMAIL 3 — FINAL', 'Send day 7']] as $key => $meta)
-            @php $num = $loop->index + 1; @endphp
-            <div class="bg-gray-900 border border-gray-800 rounded-2xl mb-4 overflow-hidden">
-                <div class="flex items-center justify-between px-5 py-3 bg-gray-800 border-b border-gray-700">
-                    <div>
-                        <span class="text-blue-400 font-bold text-xs tracking-widest">{{ $meta[0] }}</span>
-                        <span class="text-gray-600 text-xs ml-3">{{ $meta[1] }}</span>
-                    </div>
-                    <div class="flex gap-2">
-    <button wire:click="regenerateEmail({{ $num }})"
-        class="text-xs px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-all">
-        🔄 Redo
-    </button>
-    <button onclick="copyText(document.getElementById('email-body-{{ $key }}').innerText)"
-        class="text-xs px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-800 text-blue-300 transition-all">
-        📋 Copy
-    </button>
-    <button
-        data-subject="{{ $selectedSubject === 0 ? addslashes($result['subject1'] ?? '') : addslashes($result['subject2'] ?? '') }}"
-        data-body="{{ addslashes($result[$key] ?? '') }}"
-        onclick="openGmail(this.dataset.subject, this.dataset.body)"
-        class="text-xs px-3 py-1 rounded-lg bg-red-900 hover:bg-red-800 text-red-300 transition-all">
-        📧 Gmail
-    </button>
-    <button
-        data-subject="{{ $selectedSubject === 0 ? addslashes($result['subject1'] ?? '') : addslashes($result['subject2'] ?? '') }}"
-        data-body="{{ addslashes($result[$key] ?? '') }}"
-        onclick="openOutlook(this.dataset.subject, this.dataset.body)"
-        class="text-xs px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-700 text-blue-200 transition-all">
-        📨 Outlook
-    </button>
-</div>
-                </div>
-                <div class="p-5">
-                    <div id="email-body-{{ $key }}" class="text-gray-300 text-sm leading-relaxed font-sans space-y-3">
-    @foreach(explode("\n\n", $result[$key] ?? '') as $paragraph)
-        @if(trim($paragraph))
-            <p class="{{ str_starts_with(trim($paragraph), 'Best regards') || str_starts_with(trim($paragraph), 'Hi ') || str_starts_with(trim($paragraph), 'Dear ') ? 'font-medium' : '' }}">
-                {!! nl2br(e(trim($paragraph))) !!}
-            </p>
-        @endif
-    @endforeach
-</div>
-                </div>
-            </div>
+           @foreach(['email1' => ['EMAIL 1 — OPENER', 'Send now', 1], 'email2' => ['EMAIL 2 — FOLLOW-UP', 'Send day 3', 2], 'email3' => ['EMAIL 3 — FINAL', 'Send day 7', 3]] as $key => [$label, $timing, $num])
+@php
+    $isEditing  = ${'editingEmail'.$num} ?? false;
+    $hasUnsaved = ${'hasUnsaved'.$num} ?? false;
+    $isEdited   = !empty($this->result['edited_email'.$num]);
+@endphp
+<div class="bg-gray-900 border border-gray-800 rounded-2xl mb-4 overflow-hidden" data-unsaved="{{ $hasUnsaved ? 'true' : 'false' }}">
+    <!-- CARD HEADER -->
+    <div class="flex items-center justify-between px-5 py-3 bg-gray-800 border-b border-gray-700">
+        <div class="flex items-center gap-2">
+            <span class="text-blue-400 font-bold text-xs tracking-widest">{{ $label }}</span>
+            <span class="text-gray-600 text-xs">{{ $timing }}</span>
+            @if($isEdited)
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-900 text-indigo-300 font-semibold">✏️ Manually Edited</span>
+            @else
+            <span class="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400 font-medium">🤖 AI Generated</span>
+            @endif
+            @if($hasUnsaved)
+            <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-900 text-yellow-400 font-semibold">● Unsaved</span>
+            @endif
+        </div>
+        <div class="flex gap-2 items-center">
+            @if(!$isEditing)
+                <!-- Normal mode buttons -->
+                <button wire:click="startEdit({{ $num }})"
+                    class="text-xs px-3 py-1 rounded-lg bg-indigo-900 hover:bg-indigo-800 text-indigo-300 transition-all font-semibold">
+                    ✏️ Edit
+                </button>
+                <button wire:click="regenerateEmail({{ $num }})"
+                    class="text-xs px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-all">
+                    🔄 Redo
+                </button>
+                <button
+                    data-subject="{{ $selectedSubject === 0 ? ($result['subject1'] ?? '') : ($result['subject2'] ?? '') }}"
+                    data-body="{{ $result[$key] ?? '' }}"
+                    onclick="copyEmail(this.dataset.body)"
+                    class="text-xs px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-800 text-blue-300 transition-all">
+                    📋 Copy
+                </button>
+                <button
+                    data-subject="{{ $selectedSubject === 0 ? ($result['subject1'] ?? '') : ($result['subject2'] ?? '') }}"
+                    data-body="{{ $result[$key] ?? '' }}"
+                    onclick="openGmail(this.dataset.subject, this.dataset.body)"
+                    class="text-xs px-3 py-1 rounded-lg bg-red-900 hover:bg-red-800 text-red-300 transition-all">
+                    📧 Gmail
+                </button>
+                <button
+                    data-subject="{{ $selectedSubject === 0 ? ($result['subject1'] ?? '') : ($result['subject2'] ?? '') }}"
+                    data-body="{{ $result[$key] ?? '' }}"
+                    onclick="openOutlook(this.dataset.subject, this.dataset.body)"
+                    class="text-xs px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-700 text-blue-200 transition-all">
+                    📨 Outlook
+                </button>
+            @else
+                <!-- Edit mode buttons -->
+                <span class="text-xs text-gray-500" id="char-count-{{ $num }}">0 chars</span>
+                <button wire:click="saveEdit({{ $num }})"
+                    class="text-xs px-3 py-1 rounded-lg bg-green-800 hover:bg-green-700 text-green-300 transition-all font-semibold">
+                    💾 Save
+                </button>
+                <button wire:click="cancelEdit({{ $num }})"
+                    class="text-xs px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-all">
+                    ✕ Cancel
+                </button>
+                <button wire:click="resetToAI({{ $num }})"
+                    class="text-xs px-3 py-1 rounded-lg bg-orange-900 hover:bg-orange-800 text-orange-300 transition-all">
+                    🤖 Reset AI
+                </button>
+            @endif
+        </div>
+    </div>
+
+    <!-- CARD BODY -->
+    @if(!$isEditing)
+    <!-- Display Mode -->
+    <div class="p-5">
+        <div class="text-gray-300 text-sm leading-relaxed font-sans space-y-3" id="email-body-{{ $key }}">
+            @foreach(explode("\n\n", $result[$key] ?? '') as $paragraph)
+                @if(trim($paragraph))
+                    <p>{!! nl2br(e(trim($paragraph))) !!}</p>
+                @endif
             @endforeach
+        </div>
+    </div>
+    @else
+    <!-- Edit Mode -->
+    <div class="p-5">
+        <textarea
+            wire:model.live="editBuffer{{ $num }}"
+            id="editor-{{ $num }}"
+            rows="12"
+            onkeyup="updateCharCount({{ $num }}); @this.call('markUnsaved', {{ $num }})"
+            class="w-full bg-gray-800 border border-indigo-700 rounded-xl px-4 py-3 text-gray-200 text-sm leading-relaxed font-sans focus:outline-none focus:border-indigo-500 resize-y"
+            placeholder="Edit your email here...">{{ $result[$key] ?? '' }}</textarea>
+        <div class="flex justify-between items-center mt-2">
+            <span class="text-gray-600 text-xs">Tip: Use blank lines between paragraphs for proper formatting</span>
+            <span class="text-gray-500 text-xs" id="char-count-bottom-{{ $num }}"></span>
+        </div>
+    </div>
+    @endif
+</div>
+@endforeach
 
             <!-- SAVE BUTTON -->
             @if(!$saved)
@@ -267,29 +327,41 @@
 </div>
 
 <script>
-function copyText(text) {
-    navigator.clipboard.writeText(text).then(() => {
+function copyEmail(body) {
+    navigator.clipboard.writeText(body).then(() => {
         alert('Copied to clipboard!');
     });
 }
 
 function openGmail(subject, body) {
-    try {
-        const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + 
-            encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
-        window.open(gmailUrl, '_blank');
-    } catch(e) {
-        console.error('Gmail error:', e);
-    }
+    const url = 'https://mail.google.com/mail/?view=cm&fs=1&su=' +
+        encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    window.open(url, '_blank');
 }
 
 function openOutlook(subject, body) {
-    try {
-        const outlookUrl = 'https://outlook.live.com/mail/0/deeplink/compose?subject=' + 
-            encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
-        window.open(outlookUrl, '_blank');
-    } catch(e) {
-        console.error('Outlook error:', e);
-    }
+    const url = 'https://outlook.live.com/mail/0/deeplink/compose?subject=' +
+        encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    window.open(url, '_blank');
 }
+
+function updateCharCount(num) {
+    const editor = document.getElementById('editor-' + num);
+    if (!editor) return;
+    const count = editor.value.length;
+    const el = document.getElementById('char-count-' + num);
+    const el2 = document.getElementById('char-count-bottom-' + num);
+    const text = count + ' characters';
+    if (el) el.textContent = text;
+    if (el2) el2.textContent = text;
+}
+
+// Unsaved changes warning on page leave
+window.addEventListener('beforeunload', function(e) {
+    const unsaved = document.querySelector('[data-unsaved="true"]');
+    if (unsaved) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes!';
+    }
+});
 </script>

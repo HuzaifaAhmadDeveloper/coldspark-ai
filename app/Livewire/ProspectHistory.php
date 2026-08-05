@@ -18,6 +18,13 @@ class ProspectHistory extends Component
     public string  $replyNotes  = '';
     public string  $replyStatus = 'positive';
     public bool    $showReplyForm = false;
+    // Inline editing for history
+    public bool   $editingHistEmail1 = false;
+    public bool   $editingHistEmail2 = false;
+    public bool   $editingHistEmail3 = false;
+    public string $histEditBuffer1   = '';
+    public string $histEditBuffer2   = '';
+    public string $histEditBuffer3   = '';
 
     public function viewSequence(int $id): void
     {
@@ -58,6 +65,57 @@ class ProspectHistory extends Component
         $this->viewing       = $this->viewing->fresh();
         $this->showReplyForm = false;
     }
+
+    public function startHistEdit(int $num): void
+{
+    $buffer  = "histEditBuffer{$num}";
+    $key     = "email{$num}";
+    $editing = "editingHistEmail{$num}";
+    $this->$buffer  = $this->viewing->getDisplayEmail($num);
+    $this->$editing = true;
+}
+
+public function cancelHistEdit(int $num): void
+{
+    $editing = "editingHistEmail{$num}";
+    $this->$editing = false;
+}
+
+public function saveHistEdit(int $num): void
+{
+    if (!$this->viewing) return;
+
+    $buffer    = "histEditBuffer{$num}";
+    $editedKey = "edited_email{$num}";
+    $editing   = "editingHistEmail{$num}";
+
+    $this->viewing->update([
+        $editedKey  => $this->$buffer,
+        'is_edited' => true,
+    ]);
+
+    $this->viewing   = $this->viewing->fresh();
+    $this->$editing  = false;
+}
+
+public function resetHistToAI(int $num): void
+{
+    if (!$this->viewing) return;
+
+    $editedKey = "edited_email{$num}";
+    $editing   = "editingHistEmail{$num}";
+
+    $this->viewing->update([$editedKey => null]);
+
+    // Check if any email still edited
+    $seq = $this->viewing->fresh();
+    if (empty($seq->edited_email1) && empty($seq->edited_email2) && empty($seq->edited_email3)) {
+        $seq->update(['is_edited' => false]);
+    }
+
+    $this->viewing  = $seq;
+    $this->$editing = false;
+}
 
     public function markNoReply(): void
     {

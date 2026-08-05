@@ -143,42 +143,93 @@
             </div>
 
             <!-- EMAIL CARDS WITH GMAIL + OUTLOOK BUTTONS -->
-            @foreach(['email1' => 'EMAIL 1 — OPENER', 'email2' => 'EMAIL 2 — FOLLOW-UP', 'email3' => 'EMAIL 3 — FINAL'] as $key => $label)
-            <div class="bg-gray-800 rounded-xl p-4 mb-3">
-                <div class="flex justify-between items-center mb-2">
-                    <div class="text-blue-400 text-xs font-bold">{{ $label }}</div>
-                    <div class="flex gap-2">
-                        <button
-    data-text="{{ $viewing->$key }}"
-    onclick="navigator.clipboard.writeText(this.dataset.text).then(() => alert('Copied!'))"
-    class="text-xs px-3 py-1 bg-blue-900 hover:bg-blue-800 text-blue-300 rounded-lg transition-all">
-    📋 Copy
-</button>
-<button
-    data-subject="{{ $viewing->subject1 }}"
-    data-body="{{ $viewing->$key }}"
-    onclick="openGmail(this.dataset.subject, this.dataset.body)"
-    class="text-xs px-3 py-1 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-all">
-    📧 Gmail
-</button>
-<button
-    data-subject="{{ $viewing->subject1 }}"
-    data-body="{{ $viewing->$key }}"
-    onclick="openOutlook(this.dataset.subject, this.dataset.body)"
-    class="text-xs px-3 py-1 bg-blue-900 hover:bg-blue-700 text-blue-200 rounded-lg transition-all">
-    📨 Outlook
-</button>
-                    </div>
-                </div>
-                <div class="text-gray-300 text-sm leading-relaxed font-sans space-y-3">
-    @foreach(explode("\n\n", $viewing->$key ?? '') as $paragraph)
-        @if(trim($paragraph))
-            <p>{!! nl2br(e(trim($paragraph))) !!}</p>
-        @endif
-    @endforeach
-</div>
-            </div>
+       @foreach(['email1' => ['EMAIL 1 — OPENER', 1], 'email2' => ['EMAIL 2 — FOLLOW-UP', 2], 'email3' => ['EMAIL 3 — FINAL', 3]] as $key => [$label, $num])
+@php
+    $displayEmail = $viewing->getDisplayEmail($num);
+    $isEdited     = $viewing->isEmailEdited($num);
+    $isEditing    = ${'editingHistEmail'.$num} ?? false;
+@endphp
+<div class="bg-gray-800 rounded-xl mb-3 overflow-hidden">
+    <!-- Header -->
+    <div class="flex justify-between items-center px-4 py-2 border-b border-gray-700">
+        <div class="flex items-center gap-2">
+            <span class="text-blue-400 text-xs font-bold">{{ $label }}</span>
+            @if($isEdited)
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-900 text-indigo-400 font-semibold">✏️ Manually Edited</span>
+            @else
+            <span class="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-500">🤖 AI Generated</span>
+            @endif
+        </div>
+        <div class="flex gap-2">
+            @if(!$isEditing)
+            <button wire:click="startHistEdit({{ $num }})"
+                class="text-xs px-2 py-1 bg-indigo-900 hover:bg-indigo-800 text-indigo-300 rounded-lg transition-all">
+                ✏️ Edit
+            </button>
+            <button
+                data-text="{{ $displayEmail }}"
+                onclick="navigator.clipboard.writeText(this.dataset.text).then(() => alert('Copied!'))"
+                class="text-xs px-2 py-1 bg-blue-900 hover:bg-blue-800 text-blue-300 rounded-lg transition-all">
+                📋 Copy
+            </button>
+            <button
+                data-subject="{{ $viewing->subject1 }}"
+                data-body="{{ $displayEmail }}"
+                onclick="openGmail(this.dataset.subject, this.dataset.body)"
+                class="text-xs px-2 py-1 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-all">
+                📧 Gmail
+            </button>
+            <button
+                data-subject="{{ $viewing->subject1 }}"
+                data-body="{{ $displayEmail }}"
+                onclick="openOutlook(this.dataset.subject, this.dataset.body)"
+                class="text-xs px-2 py-1 bg-blue-900 hover:bg-blue-700 text-blue-200 rounded-lg transition-all">
+                📨 Outlook
+            </button>
+            @else
+            <button wire:click="saveHistEdit({{ $num }})"
+                class="text-xs px-2 py-1 bg-green-800 hover:bg-green-700 text-green-300 rounded-lg transition-all font-semibold">
+                💾 Save
+            </button>
+            <button wire:click="cancelHistEdit({{ $num }})"
+                class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-all">
+                ✕ Cancel
+            </button>
+            <button wire:click="resetHistToAI({{ $num }})"
+                class="text-xs px-2 py-1 bg-orange-900 hover:bg-orange-800 text-orange-300 rounded-lg transition-all">
+                🤖 Reset AI
+            </button>
+            @endif
+        </div>
+    </div>
+
+    <!-- Body -->
+    @if(!$isEditing)
+    <div class="p-4">
+        <div class="text-gray-300 text-sm leading-relaxed font-sans space-y-3">
+            @foreach(explode("\n\n", $displayEmail) as $paragraph)
+                @if(trim($paragraph))
+                    <p>{!! nl2br(e(trim($paragraph))) !!}</p>
+                @endif
             @endforeach
+        </div>
+    </div>
+    @else
+    <div class="p-4">
+        <textarea
+            wire:model.live="histEditBuffer{{ $num }}"
+            id="hist-editor-{{ $num }}"
+            rows="10"
+            onkeyup="updateHistCharCount({{ $num }})"
+            class="w-full bg-gray-700 border border-indigo-700 rounded-xl px-4 py-3 text-gray-200 text-sm leading-relaxed font-sans focus:outline-none focus:border-indigo-500 resize-y">{{ $displayEmail }}</textarea>
+        <div class="flex justify-between items-center mt-2">
+            <span class="text-gray-600 text-xs">Tip: Use blank lines between paragraphs for proper formatting</span>
+            <span class="text-gray-400 text-xs" id="hist-char-count-{{ $num }}">{{ strlen($displayEmail) }} chars</span>
+        </div>
+    </div>
+    @endif
+</div>
+@endforeach
         </div>
         @endif
 
@@ -220,6 +271,13 @@
     </div>
 
  <script>
+function updateHistCharCount(num) {
+    const editor = document.getElementById('hist-editor-' + num);
+    if (!editor) return;
+    const el = document.getElementById('hist-char-count-' + num);
+    if (el) el.textContent = editor.value.length + ' chars';
+}
+
 function openGmail(subject, body) {
     const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' +
         encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
