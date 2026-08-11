@@ -153,7 +153,7 @@
 
     @if($csvFileName)
     <!-- Import Summary -->
-    <div class="grid grid-cols-4 gap-3 mb-5">
+    <div class="grid grid-cols-5 gap-3 mb-5">
         <div class="bg-green-900 border border-green-700 rounded-xl px-4 py-3 text-center">
             <div class="text-green-400 font-bold text-lg">{{ $importSummary['imported'] }}</div>
             <div class="text-green-600 text-xs mt-1">Imported</div>
@@ -165,6 +165,10 @@
         <div class="bg-red-900 border border-red-700 rounded-xl px-4 py-3 text-center">
             <div class="text-red-400 font-bold text-lg">{{ $importSummary['invalid_email'] }}</div>
             <div class="text-red-600 text-xs mt-1">Invalid/Missing Email</div>
+        </div>
+        <div class="bg-orange-900 border border-orange-700 rounded-xl px-4 py-3 text-center">
+            <div class="text-orange-400 font-bold text-lg">{{ $importSummary['suppressed'] }}</div>
+            <div class="text-orange-600 text-xs mt-1">Suppressed</div>
         </div>
         <div class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-center">
             <div class="text-gray-300 font-bold text-lg">{{ $importSummary['already_active'] }}</div>

@@ -2,15 +2,17 @@
 
 namespace App\Jobs;
 
+use App\Exceptions\Mail\PermanentMailException;
 use App\Mail\CampaignEmailMailable;
 use App\Models\CampaignEmail;
 use App\Services\CampaignService;
+use App\Services\EmailSendingService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
 
 class SendCampaignEmailJob implements ShouldQueue
 {
@@ -21,7 +23,20 @@ class SendCampaignEmailJob implements ShouldQueue
 
     public function __construct(public int $campaignEmailId) {}
 
-    public function handle(CampaignService $service): void
+    /**
+     * Throttles actual sending to services.email.rate_per_second (the
+     * "ses-sending" limiter registered in AppServiceProvider) regardless of
+     * how many jobs the queue worker pulls at once — dispatch-due can queue
+     * a whole batch in one shot; this is what keeps the provider's
+     * per-second cap from ever being exceeded. Jobs that hit the limit are
+     * released back onto the queue to retry shortly, not counted against $tries.
+     */
+    public function middleware(): array
+    {
+        return [new RateLimited('ses-sending')];
+    }
+
+    public function handle(CampaignService $service, EmailSendingService $sender): void
     {
         $email = CampaignEmail::with(['campaign', 'prospect'])->find($this->campaignEmailId);
         if (!$email) return;
@@ -39,12 +54,26 @@ class SendCampaignEmailJob implements ShouldQueue
             return;
         }
 
+        // Authoritative, cross-campaign check: unsubscribed, hard-bounced, complained,
+        // or manually suppressed anywhere in this account — never just this campaign.
+        if ($service->isSuppressed($recipient, $email->campaign->user_id)) {
+            $service->markSkipped($email, 'Recipient is on the suppression list');
+            $service->checkCompletion($email->campaign);
+            return;
+        }
+
         $service->markSending($email);
 
         try {
-            Mail::to($recipient)->send(new CampaignEmailMailable($email));
+            $result = $sender->send(new CampaignEmailMailable($email), $recipient);
 
-            $service->markSent($email, (string) \Illuminate\Support\Str::uuid());
+            $service->markSent($email, $result->messageId, $result->provider);
+        } catch (PermanentMailException $e) {
+            // Every configured provider rejected it for a reason retrying won't fix
+            // (invalid address, unverified SES sandbox recipient, suppressed, etc).
+            $service->markFailed($email, $e->getMessage());
+            $service->checkCompletion($email->campaign);
+            return;
         } catch (\Throwable $e) {
             $service->recordLog($email->campaign, 'send_error', "CampaignEmail #{$email->id}: " . $e->getMessage());
             throw $e; // let the queue retry per $tries/$backoff — failed() handles the final attempt

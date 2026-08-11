@@ -7,7 +7,13 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        DB::statement("ALTER TABLE campaign_emails MODIFY status ENUM('pending','scheduled','sending','sent','failed','skipped') NOT NULL DEFAULT 'pending'");
+        // MySQL's ENUM column needs an explicit ALTER to add a new allowed value.
+        // SQLite (used by the test suite) has no real ENUM type — Laravel's schema
+        // builder already stores it as a plain string there, so any value fits
+        // and this statement would just error; skip it on non-MySQL connections.
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE campaign_emails MODIFY status ENUM('pending','scheduled','sending','sent','failed','skipped') NOT NULL DEFAULT 'pending'");
+        }
 
         Schema::table('campaign_emails', function ($table) {
             $table->unique('tracking_token', 'ce_tracking_token_unique');
@@ -21,6 +27,9 @@ return new class extends Migration {
         });
 
         DB::statement("UPDATE campaign_emails SET status = 'scheduled' WHERE status = 'sending'");
-        DB::statement("ALTER TABLE campaign_emails MODIFY status ENUM('pending','scheduled','sent','failed','skipped') NOT NULL DEFAULT 'pending'");
+
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE campaign_emails MODIFY status ENUM('pending','scheduled','sent','failed','skipped') NOT NULL DEFAULT 'pending'");
+        }
     }
 };

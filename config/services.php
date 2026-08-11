@@ -28,6 +28,26 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // EmailSendingService (app/Services/EmailSendingService.php): which Laravel
+    // mailer (config/mail.php mailers.*) campaign sends try first, and which
+    // one to fall back to on failure. Both are just mailer names — adding
+    // SendGrid/Mailgun/Postmark later means adding a mailer + pointing one of
+    // these at it, not changing any campaign code.
+    'email' => [
+        'primary' => env('MAIL_PRIMARY_PROVIDER', 'ses'),
+        'fallback' => env('MAIL_FALLBACK_PROVIDER', 'smtp'),
+
+        // Provider-aware throttling — SendCampaignEmailJob rate-limits itself
+        // to this many sends/second (default matches SES sandbox: 1/sec), and
+        // campaigns:dispatch-due refuses to queue more than this many sends
+        // in a rolling 24h window (default matches SES sandbox: 200/day).
+        // Raise both once SES production access lifts these caps — nothing
+        // else in the code needs to change.
+        'rate_per_second' => (int) env('EMAIL_SEND_RATE_PER_SECOND', 1),
+        'daily_limit' => (int) env('EMAIL_DAILY_LIMIT', 200),
+        'batch_size' => (int) env('EMAIL_BATCH_SIZE', 200),
+    ],
+
     'mailgun' => [
         'domain' => env('MAILGUN_DOMAIN'),
         'secret' => env('MAILGUN_SECRET'),

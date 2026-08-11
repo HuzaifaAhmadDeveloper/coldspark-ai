@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Campaign;
 use App\Models\CampaignEmail;
 use App\Models\EmailEvent;
+use App\Models\Prospect;
+use App\Models\Suppression;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -240,9 +242,13 @@ class CampaignService
     }
 
     /**
-     * Mark an email as bounced.
+     * Mark an email as bounced. $permanent distinguishes a hard bounce (bad
+     * address, domain doesn't exist — will never succeed) from a soft/transient
+     * one (mailbox full, greylisting — may well succeed later). Only a
+     * permanent bounce globally suppresses the address; a soft bounce just
+     * marks this one send attempt as failed and lets the retry policy handle it.
      */
-    public function markBounced(CampaignEmail $email): void
+    public function markBounced(CampaignEmail $email, bool $permanent = true): void
     {
         if ($email->bounced) return;
 
@@ -253,9 +259,14 @@ class CampaignService
         ]);
 
         $email->campaign->increment('emails_bounced');
-        $this->recordEvent($email, 'bounced');
+        $this->recordEvent($email, 'bounced', ['permanent' => $permanent]);
 
-        // Cancel follow-ups for bounced addresses
+        if (!$permanent) return;
+
+        $this->suppress($email->prospect->email, $email->campaign->user_id, 'hard_bounce', $email->id);
+
+        // Cancel follow-ups for this campaign too (separate from the
+        // cross-campaign suppression above, which blocks all future campaigns).
         if ($email->campaign->stop_on_reply) {
             $this->cancelFollowups($email->campaign, $email->prospect_id);
         }
@@ -272,18 +283,101 @@ class CampaignService
     }
 
     /**
-     * Mark an email as successfully sent.
+     * Mark an email as successfully sent. $provider records which mailer
+     * actually delivered it (ses/smtp/...) — useful once multiple providers
+     * are in play to see per-provider deliverability.
      */
-    public function markSent(CampaignEmail $email, ?string $messageId = null): void
+    public function markSent(CampaignEmail $email, ?string $messageId = null, ?string $provider = null): void
     {
         $email->update([
             'status'     => 'sent',
             'sent_at'    => now(),
             'message_id' => $messageId,
+            'provider'   => $provider,
         ]);
 
         $email->campaign->increment('emails_sent');
-        $this->recordEvent($email, 'sent');
+        $this->recordEvent($email, 'sent', $provider ? ['provider' => $provider] : []);
+    }
+
+    /**
+     * Mark an email as confirmed delivered by the provider (SES/SNS delivery
+     * notification, or another ESP's delivery webhook).
+     */
+    public function markDelivered(CampaignEmail $email): void
+    {
+        if ($email->delivered) return;
+
+        $email->update([
+            'delivered'    => true,
+            'delivered_at' => now(),
+        ]);
+
+        $this->recordEvent($email, 'delivered');
+    }
+
+    /**
+     * Skip a single email with a reason (e.g. recipient unsubscribed between
+     * scheduling and send time) without touching sent/opened/reply counters.
+     */
+    public function markSkipped(CampaignEmail $email, string $reason): void
+    {
+        if ($email->status === 'skipped') return;
+
+        $email->update(['status' => 'skipped']);
+        $this->recordEvent($email, 'skipped', ['reason' => $reason]);
+    }
+
+    /**
+     * Suppress a prospect from all future campaign sends (unsubscribe / spam
+     * complaint). Cancels every not-yet-sent email across every campaign for
+     * this prospect — once someone opts out, that applies to all outreach
+     * from this account, not just the one campaign they replied from.
+     */
+    public function markUnsubscribed(Prospect $prospect, string $reason = 'unsubscribed'): int
+    {
+        if (!$prospect->unsubscribed) {
+            $prospect->update(['unsubscribed' => true, 'unsubscribed_at' => now()]);
+        }
+
+        $this->suppress($prospect->email, $prospect->user_id, $reason);
+
+        $pending = CampaignEmail::where('prospect_id', $prospect->id)
+            ->whereIn('status', ['scheduled', 'pending'])
+            ->get();
+
+        foreach ($pending as $email) {
+            $email->update(['status' => 'skipped']);
+            $email->campaign->increment('cancelled_followups');
+            $this->recordEvent($email, $reason === 'complaint' ? 'complaint' : 'unsubscribed');
+        }
+
+        return $pending->count();
+    }
+
+    /**
+     * Add an email to the centralized, cross-campaign suppression list.
+     * Idempotent — re-suppressing an already-suppressed address is a no-op.
+     */
+    public function suppress(string $email, int $userId, string $reason, ?int $sourceCampaignEmailId = null): void
+    {
+        Suppression::firstOrCreate(
+            ['user_id' => $userId, 'email' => strtolower(trim($email))],
+            ['reason' => $reason, 'source_campaign_email_id' => $sourceCampaignEmailId],
+        );
+    }
+
+    /**
+     * The authoritative "may we email this address?" check. Every send path
+     * (queued job, CSV import, manual add) must consult this — it's the one
+     * source of truth across unsubscribes, hard bounces, complaints, and
+     * manual suppressions, spanning every campaign this user has ever run.
+     */
+    public function isSuppressed(string $email, int $userId): bool
+    {
+        return Suppression::where('user_id', $userId)
+            ->where('email', strtolower(trim($email)))
+            ->exists();
     }
 
     /**

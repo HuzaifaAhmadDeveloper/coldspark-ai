@@ -15,6 +15,11 @@ Route::get('/t/c/{token}', [App\Http\Controllers\CampaignTrackingController::cla
 Route::post('/webhooks/campaign-events', [App\Http\Controllers\CampaignEmailWebhookController::class, 'handle'])
     ->name('campaign.webhook');
 
+// One-click unsubscribe (RFC 8058) — GET confirms, POST executes. Must stay public:
+// hit directly by mailbox providers (Gmail/Yahoo/Outlook), not by a logged-in user.
+Route::match(['get', 'post'], '/unsubscribe/{token}', [App\Http\Controllers\UnsubscribeController::class, 'handle'])
+    ->where('token', '[A-Za-z0-9]+')->name('campaign.unsubscribe');
+
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });

@@ -51,6 +51,12 @@ return [
 
         'ses' => [
             'transport' => 'ses',
+            // Attaches every send to an SES Configuration Set so bounce/complaint/
+            // delivery events publish to the SNS topic wired to /webhooks/campaign-events.
+            // Optional — leave SES_CONFIGURATION_SET unset to send without one.
+            'options' => array_filter([
+                'ConfigurationSetName' => env('SES_CONFIGURATION_SET'),
+            ]),
         ],
 
         'mailgun' => [

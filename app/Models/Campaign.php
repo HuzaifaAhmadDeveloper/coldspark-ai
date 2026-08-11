@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Campaign extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id', 'name', 'status', 'daily_limit', 'gap_minutes',
         'start_date', 'working_hours_start', 'working_hours_end',

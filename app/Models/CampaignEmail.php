@@ -3,17 +3,20 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class CampaignEmail extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'campaign_id', 'prospect_id', 'email_number',
         'subject', 'body', 'scheduled_at', 'sent_at',
-        'status', 'message_id', 'tracking_token',
+        'status', 'message_id', 'provider', 'tracking_token',
         'opened', 'opened_at', 'clicked', 'clicked_at',
         'replied', 'replied_at', 'bounced', 'bounced_at',
-        'error_message',
+        'delivered', 'delivered_at', 'error_message',
     ];
 
     protected $casts = [
@@ -23,10 +26,12 @@ class CampaignEmail extends Model
         'clicked_at'   => 'datetime',
         'replied_at'   => 'datetime',
         'bounced_at'   => 'datetime',
+        'delivered_at' => 'datetime',
         'opened'       => 'boolean',
         'clicked'      => 'boolean',
         'replied'      => 'boolean',
         'bounced'      => 'boolean',
+        'delivered'    => 'boolean',
     ];
 
     // ── Relationships ──

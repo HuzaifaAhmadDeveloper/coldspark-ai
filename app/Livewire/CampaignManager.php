@@ -2,6 +2,7 @@
 namespace App\Livewire;
 use App\Models\Campaign;
 use App\Models\CampaignEmail;
+use App\Models\Prospect;
 use App\Services\CampaignService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -99,10 +100,12 @@ class CampaignManager extends Component
                 SUM(clicked = 1) as clicked,
                 SUM(replied = 1) as replied,
                 SUM(bounced = 1) as bounced,
+                SUM(delivered = 1) as delivered,
                 SUM(status = 'skipped' AND email_number > 1) as cancelled_followups
             ")->first();
 
-        $sent = (int) ($e->sent ?? 0);
+        $sent         = (int) ($e->sent ?? 0);
+        $unsubscribed = Prospect::where('user_id', Auth::id())->where('unsubscribed', true)->count();
 
         $stats = [
             'total'               => $campaigns->count(),
@@ -110,11 +113,13 @@ class CampaignManager extends Component
             'completed'           => $campaigns->where('status', 'completed')->count(),
             'scheduled'           => (int) ($e->scheduled ?? 0) + (int) ($e->sending ?? 0),
             'sent'                => $sent,
+            'delivered'           => (int) ($e->delivered ?? 0),
             'opened'              => (int) ($e->opened ?? 0),
             'clicked'             => (int) ($e->clicked ?? 0),
             'replies'             => (int) ($e->replied ?? 0),
             'bounced'             => (int) ($e->bounced ?? 0),
             'failed'              => (int) ($e->failed ?? 0),
+            'unsubscribed'        => $unsubscribed,
             'cancelled_followups' => (int) ($e->cancelled_followups ?? 0),
             'open_rate'           => $sent > 0 ? round(((int) ($e->opened ?? 0)) / $sent * 100, 1) : 0,
             'reply_rate'          => $sent > 0 ? round(((int) ($e->replied ?? 0)) / $sent * 100, 1) : 0,

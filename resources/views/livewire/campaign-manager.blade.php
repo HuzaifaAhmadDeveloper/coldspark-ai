@@ -50,10 +50,10 @@
         </div>
         <div class="grid grid-cols-4 gap-4 mb-4">
             @foreach([
+                ['📬', $stats['delivered'], 'Delivered', 'green'],
                 ['👁️', $stats['opened'], 'Opened', 'yellow'],
                 ['💬', $stats['replies'], 'Replies', 'purple'],
                 ['⚠️', $stats['bounced'], 'Bounced', 'red'],
-                ['✅', $stats['completed'], 'Completed', 'blue'],
             ] as [$icon, $val, $label, $color])
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 text-center">
                 <div class="text-2xl mb-1">{{ $icon }}</div>
@@ -62,11 +62,12 @@
             </div>
             @endforeach
         </div>
-        <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="grid grid-cols-4 gap-4 mb-8">
             @foreach([
+                ['✅', $stats['completed'], 'Completed', 'blue'],
+                ['🔕', $stats['unsubscribed'], 'Unsubscribed', 'gray'],
                 ['📈', $stats['open_rate'].'%', 'Open Rate', 'green'],
                 ['📊', $stats['reply_rate'].'%', 'Reply Rate', 'purple'],
-                ['🚫', $stats['cancelled_followups'], 'Cancelled Follow-ups', 'gray'],
             ] as [$icon, $val, $label, $color])
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 text-center">
                 <div class="text-2xl mb-1">{{ $icon }}</div>

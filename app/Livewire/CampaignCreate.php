@@ -39,6 +39,7 @@ class CampaignCreate extends Component
         'duplicates'     => 0,
         'invalid_email'  => 0,
         'already_active' => 0,
+        'suppressed'     => 0,
     ];
 
     // Step 3 - Email Generation
@@ -73,6 +74,7 @@ class CampaignCreate extends Component
             'duplicates'     => 0,
             'invalid_email'  => 0,
             'already_active' => 0,
+            'suppressed'     => 0,
         ];
 
         if (empty(trim($csvContent))) {
@@ -107,6 +109,13 @@ class CampaignCreate extends Component
                 ->pluck('email')
                 ->filter()
                 ->map(fn($e) => strtolower(trim($e)))
+                ->flip()
+                ->all();
+
+            // Unsubscribed / hard-bounced / complained / manually suppressed — across
+            // every campaign this user has ever run, not just the active one.
+            $suppressedEmails = \App\Models\Suppression::where('user_id', Auth::id())
+                ->pluck('email')
                 ->flip()
                 ->all();
 
@@ -146,6 +155,11 @@ class CampaignCreate extends Component
                     continue;
                 }
                 $seenEmails[$emailKey] = true;
+
+                if (isset($suppressedEmails[$emailKey])) {
+                    $this->importSummary['suppressed']++;
+                    continue;
+                }
 
                 if (isset($activeEmails[$emailKey])) {
                     $this->importSummary['already_active']++;
