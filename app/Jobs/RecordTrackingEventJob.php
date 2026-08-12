@@ -19,6 +19,10 @@ class RecordTrackingEventJob implements ShouldQueue
         public string $trackingToken,
         public string $eventType, // opened|clicked|bounced|soft_bounced|replied|delivered|complaint|unsubscribed
         public array $meta = [],
+        // SES/SNS's own notification MessageId (or an equivalent ID from another
+        // ESP) — see CampaignService::recordEvent(). Null for pixel/click events,
+        // which have no provider-assigned ID and don't need this protection.
+        public ?string $providerEventId = null,
     ) {}
 
     public function handle(CampaignService $service): void
@@ -29,16 +33,16 @@ class RecordTrackingEventJob implements ShouldQueue
         match ($this->eventType) {
             'opened'       => $service->markOpened($email),
             'clicked'      => $service->markClicked($email),
-            'delivered'    => $service->markDelivered($email),
+            'delivered'    => $service->markDelivered($email, $this->providerEventId),
             // Hard bounce: address is bad, will never work — suppress everywhere.
-            'bounced'      => $service->markBounced($email, permanent: true),
+            'bounced'      => $service->markBounced($email, permanent: true, providerEventId: $this->providerEventId),
             // Soft/transient bounce: mailbox full, greylisted, etc — this attempt
             // failed, but don't blacklist the address; let the retry policy work.
-            'soft_bounced' => $service->markBounced($email, permanent: false),
-            'replied'      => $service->markReply($email),
+            'soft_bounced' => $service->markBounced($email, permanent: false, providerEventId: $this->providerEventId),
+            'replied'      => $service->markReply($email, $this->providerEventId),
             'complaint'    => $this->handleComplaint($service, $email),
-            'unsubscribed' => $service->markUnsubscribed($email->prospect),
-            default        => $service->recordEvent($email, $this->eventType, $this->meta),
+            'unsubscribed' => $service->markUnsubscribed($email->prospect, providerEventId: $this->providerEventId),
+            default        => $service->recordEvent($email, $this->eventType, $this->meta, $this->providerEventId),
         };
     }
 
@@ -50,7 +54,7 @@ class RecordTrackingEventJob implements ShouldQueue
      */
     private function handleComplaint(CampaignService $service, \App\Models\CampaignEmail $email): void
     {
-        $service->markUnsubscribed($email->prospect, 'complaint');
-        $service->markBounced($email, permanent: false);
+        $service->markUnsubscribed($email->prospect, 'complaint', $this->providerEventId);
+        $service->markBounced($email, permanent: false, providerEventId: $this->providerEventId);
     }
 }

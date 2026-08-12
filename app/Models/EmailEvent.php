@@ -11,6 +11,7 @@ class EmailEvent extends Model
         'campaign_email_id',
         'event_type',
         'metadata',
+        'provider_event_id',
     ];
 
     protected $casts = [

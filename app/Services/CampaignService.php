@@ -189,7 +189,7 @@ class CampaignService
     /**
      * Mark a reply on a campaign email and cancel follow-ups if stop_on_reply is enabled.
      */
-    public function markReply(CampaignEmail $email): void
+    public function markReply(CampaignEmail $email, ?string $providerEventId = null): void
     {
         if ($email->replied) return;
 
@@ -201,7 +201,7 @@ class CampaignService
         $campaign = $email->campaign;
         $campaign->increment('replies_received');
 
-        $this->recordEvent($email, 'replied');
+        $this->recordEvent($email, 'replied', [], $providerEventId);
 
         // Cancel follow-ups if configured
         if ($campaign->stop_on_reply) {
@@ -248,7 +248,7 @@ class CampaignService
      * permanent bounce globally suppresses the address; a soft bounce just
      * marks this one send attempt as failed and lets the retry policy handle it.
      */
-    public function markBounced(CampaignEmail $email, bool $permanent = true): void
+    public function markBounced(CampaignEmail $email, bool $permanent = true, ?string $providerEventId = null): void
     {
         if ($email->bounced) return;
 
@@ -259,7 +259,7 @@ class CampaignService
         ]);
 
         $email->campaign->increment('emails_bounced');
-        $this->recordEvent($email, 'bounced', ['permanent' => $permanent]);
+        $this->recordEvent($email, 'bounced', ['permanent' => $permanent], $providerEventId);
 
         if (!$permanent) return;
 
@@ -304,7 +304,7 @@ class CampaignService
      * Mark an email as confirmed delivered by the provider (SES/SNS delivery
      * notification, or another ESP's delivery webhook).
      */
-    public function markDelivered(CampaignEmail $email): void
+    public function markDelivered(CampaignEmail $email, ?string $providerEventId = null): void
     {
         if ($email->delivered) return;
 
@@ -313,7 +313,8 @@ class CampaignService
             'delivered_at' => now(),
         ]);
 
-        $this->recordEvent($email, 'delivered');
+        $email->campaign->increment('emails_delivered');
+        $this->recordEvent($email, 'delivered', [], $providerEventId);
     }
 
     /**
@@ -334,7 +335,7 @@ class CampaignService
      * this prospect — once someone opts out, that applies to all outreach
      * from this account, not just the one campaign they replied from.
      */
-    public function markUnsubscribed(Prospect $prospect, string $reason = 'unsubscribed'): int
+    public function markUnsubscribed(Prospect $prospect, string $reason = 'unsubscribed', ?string $providerEventId = null): int
     {
         if (!$prospect->unsubscribed) {
             $prospect->update(['unsubscribed' => true, 'unsubscribed_at' => now()]);
@@ -349,7 +350,7 @@ class CampaignService
         foreach ($pending as $email) {
             $email->update(['status' => 'skipped']);
             $email->campaign->increment('cancelled_followups');
-            $this->recordEvent($email, $reason === 'complaint' ? 'complaint' : 'unsubscribed');
+            $this->recordEvent($email, $reason === 'complaint' ? 'complaint' : 'unsubscribed', [], $providerEventId);
         }
 
         return $pending->count();
@@ -407,17 +408,69 @@ class CampaignService
      */
     public function checkCompletion(Campaign $campaign): bool
     {
+        if (!in_array($campaign->status, ['active', 'scheduled'])) return false;
+
+        // "sending" rows are mid-flight, possibly on a different queue worker
+        // right now — must not be counted as complete just because this
+        // particular job's own row already resolved.
         $remaining = $campaign->emails()
-            ->whereIn('status', ['scheduled', 'pending'])
+            ->whereIn('status', ['scheduled', 'pending', 'sending'])
             ->count();
 
-        if ($remaining === 0 && $campaign->status === 'active') {
+        if ($remaining > 0) return false;
+
+        // FAILED is reserved for a genuine campaign-level failure — every
+        // single send attempt failing (SES misconfigured, sender unverified,
+        // etc) — not for the normal case where some individual recipients
+        // bounce/fail while most sends succeed. That's still COMPLETED.
+        $attempted = $campaign->emails()->whereIn('status', ['sent', 'failed'])->count();
+        $succeeded = $campaign->emails()->where('status', 'sent')->count();
+
+        if ($attempted > 0 && $succeeded === 0) {
+            $campaign->update(['status' => 'failed']);
+            $this->recordLog($campaign, 'failed', 'Every campaign email failed to send');
+        } else {
             $campaign->update(['status' => 'completed']);
             $this->recordLog($campaign, 'completed', 'All emails processed');
-            return true;
         }
 
-        return false;
+        return true;
+    }
+
+    /**
+     * A SCHEDULED campaign (future start_date, nothing sent yet) becomes
+     * ACTIVE the instant its first email actually starts sending — not at
+     * creation time and not merely because start_date arrived, since a
+     * worker outage could mean the date passed with nothing actually sent yet.
+     */
+    public function activateIfScheduled(Campaign $campaign): void
+    {
+        if ($campaign->status !== 'scheduled') return;
+
+        $campaign->update(['status' => 'active']);
+        $this->recordLog($campaign, 'activated', 'First email started sending');
+    }
+
+    /**
+     * Resume a paused campaign back to the status it should logically be in:
+     * SCHEDULED if its start date is still in the future and nothing has
+     * sent yet (matches how it started), otherwise ACTIVE.
+     */
+    public function resumeCampaign(Campaign $campaign): void
+    {
+        $tz = $campaign->timezone ?: 'UTC';
+        // Same pattern as scheduleEmails(): build the comparison date from a
+        // plain string, not from the already-cast Carbon, so it's tagged with
+        // the campaign's own timezone instead of silently inheriting app.timezone.
+        $startDateInTz = $campaign->start_date
+            ? Carbon::parse($campaign->start_date->format('Y-m-d') . ' 00:00:00', $tz)
+            : now($tz)->startOfDay();
+
+        $startInFuture = $startDateInTz->gt(now($tz)->startOfDay());
+        $hasSentAny    = $campaign->emails_sent > 0;
+
+        $campaign->update(['status' => ($startInFuture && !$hasSentAny) ? 'scheduled' : 'active']);
+        $this->recordLog($campaign, 'resumed', 'Campaign resumed');
     }
 
     /**
@@ -440,13 +493,44 @@ class CampaignService
     /**
      * Record an event for a campaign email.
      */
-    public function recordEvent(CampaignEmail $email, string $type, array $metadata = []): void
+    /**
+     * $providerEventId, when given (SES/SNS's own notification MessageId, or
+     * an equivalent ID from another ESP), makes this call idempotent at the
+     * DB level via a unique index on (campaign_email_id, provider_event_id) —
+     * a redelivered SNS notification for the same event can't create a
+     * second EmailEvent row. Pixel/click events have no such ID and pass null,
+     * which never collides (MySQL allows unlimited NULLs in a unique index).
+     */
+    public function recordEvent(CampaignEmail $email, string $type, array $metadata = [], ?string $providerEventId = null): void
     {
-        EmailEvent::create([
-            'campaign_email_id' => $email->id,
-            'event_type'        => $type,
-            'metadata'          => !empty($metadata) ? $metadata : null,
-        ]);
+        if ($providerEventId) {
+            $existing = EmailEvent::where('campaign_email_id', $email->id)
+                ->where('provider_event_id', $providerEventId)
+                ->exists();
+            if ($existing) {
+                Log::channel('stack')->info("CampaignEmail #{$email->id}: duplicate provider event ignored ({$type}, {$providerEventId})");
+                return;
+            }
+        }
+
+        try {
+            EmailEvent::create([
+                'campaign_email_id'  => $email->id,
+                'event_type'         => $type,
+                'metadata'           => !empty($metadata) ? $metadata : null,
+                'provider_event_id'  => $providerEventId,
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Two workers raced past the EXISTS check above for the same
+            // redelivered notification — the DB's unique index is the real
+            // guarantee; losing this race just means the event is already
+            // recorded, which is the correct outcome, not a failure.
+            if ($providerEventId && str_contains($e->getMessage(), 'Duplicate entry')) {
+                Log::channel('stack')->info("CampaignEmail #{$email->id}: duplicate provider event lost race, ignored ({$type}, {$providerEventId})");
+                return;
+            }
+            throw $e;
+        }
 
         Log::channel('stack')->info("CampaignEmail #{$email->id}: {$type}", $metadata);
     }

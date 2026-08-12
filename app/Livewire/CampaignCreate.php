@@ -289,10 +289,17 @@ class CampaignCreate extends Component
 
         $user = Auth::user();
 
+        // A campaign whose start date is still in the future is SCHEDULED, not
+        // ACTIVE — it becomes ACTIVE the moment its first email actually sends
+        // (see CampaignService::activateIfScheduled, called from SendCampaignEmailJob).
+        $tz            = $this->timezone ?: 'UTC';
+        $startDate     = $this->start_date ? \Carbon\Carbon::parse($this->start_date, $tz) : now($tz);
+        $initialStatus = $startDate->copy()->startOfDay()->gt(now($tz)->startOfDay()) ? 'scheduled' : 'active';
+
         $campaign = Campaign::create([
             'user_id'              => $user->id,
             'name'                 => $this->name ?: 'Campaign ' . now()->format('M d'),
-            'status'               => 'active',
+            'status'               => $initialStatus,
             'daily_limit'          => $this->daily_limit,
             'gap_minutes'          => $this->gap_minutes,
             'start_date'           => $this->start_date ?: now()->toDateString(),

@@ -28,7 +28,8 @@ class CampaignManager extends Component
 
     public function pauseCampaign(int $id): void
     {
-        Campaign::where('user_id', Auth::id())->findOrFail($id)->update(['status' => 'paused']);
+        Campaign::where('user_id', Auth::id())->whereIn('status', ['active', 'scheduled'])
+            ->findOrFail($id)->update(['status' => 'paused']);
         if ($this->viewing?->id === $id) {
             $this->viewing = $this->viewing->fresh();
         }
@@ -36,7 +37,8 @@ class CampaignManager extends Component
 
     public function resumeCampaign(int $id): void
     {
-        Campaign::where('user_id', Auth::id())->findOrFail($id)->update(['status' => 'active']);
+        $campaign = Campaign::where('user_id', Auth::id())->findOrFail($id);
+        app(CampaignService::class)->resumeCampaign($campaign);
         if ($this->viewing?->id === $id) {
             $this->viewing = $this->viewing->fresh();
         }
@@ -105,15 +107,23 @@ class CampaignManager extends Component
             ")->first();
 
         $sent         = (int) ($e->sent ?? 0);
+        $delivered    = (int) ($e->delivered ?? 0);
         $unsubscribed = Prospect::where('user_id', Auth::id())->where('unsubscribed', true)->count();
 
+        // Open/Click/Reply/Unsubscribe rate denominators are Delivered, not
+        // Sent — an email that was never delivered can't have been opened.
+        // Delivered stays 0 (so do these rates) until the SES delivery
+        // webhook is actually connected — see SES_CONFIGURATION_SET setup.
+        // Delivery/Bounce rate are correctly measured against Sent.
         $stats = [
             'total'               => $campaigns->count(),
             'active'              => $campaigns->where('status', 'active')->count(),
+            'scheduled_campaigns' => $campaigns->where('status', 'scheduled')->count(),
             'completed'           => $campaigns->where('status', 'completed')->count(),
+            'failed_campaigns'    => $campaigns->where('status', 'failed')->count(),
             'scheduled'           => (int) ($e->scheduled ?? 0) + (int) ($e->sending ?? 0),
             'sent'                => $sent,
-            'delivered'           => (int) ($e->delivered ?? 0),
+            'delivered'           => $delivered,
             'opened'              => (int) ($e->opened ?? 0),
             'clicked'             => (int) ($e->clicked ?? 0),
             'replies'             => (int) ($e->replied ?? 0),
@@ -121,8 +131,16 @@ class CampaignManager extends Component
             'failed'              => (int) ($e->failed ?? 0),
             'unsubscribed'        => $unsubscribed,
             'cancelled_followups' => (int) ($e->cancelled_followups ?? 0),
-            'open_rate'           => $sent > 0 ? round(((int) ($e->opened ?? 0)) / $sent * 100, 1) : 0,
-            'reply_rate'          => $sent > 0 ? round(((int) ($e->replied ?? 0)) / $sent * 100, 1) : 0,
+            'delivery_rate'       => $sent > 0 ? round($delivered / $sent * 100, 1) : 0,
+            'open_rate'           => $delivered > 0 ? round(((int) ($e->opened ?? 0)) / $delivered * 100, 1) : 0,
+            'click_rate'          => $delivered > 0 ? round(((int) ($e->clicked ?? 0)) / $delivered * 100, 1) : 0,
+            'reply_rate'          => $delivered > 0 ? round(((int) ($e->replied ?? 0)) / $delivered * 100, 1) : 0,
+            'bounce_rate'         => $sent > 0 ? round(((int) ($e->bounced ?? 0)) / $sent * 100, 1) : 0,
+            'unsubscribe_rate'    => $delivered > 0 ? round($unsubscribed / $delivered * 100, 1) : 0,
+            // Lets the dashboard show "—" instead of a misleading "0%" when
+            // rates are zero only because delivery tracking isn't connected yet,
+            // not because opens/clicks/replies genuinely didn't happen.
+            'delivery_tracking_connected' => $sent === 0 || $delivered > 0,
         ];
 
         $emails = $this->viewing

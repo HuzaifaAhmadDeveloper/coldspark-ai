@@ -42,7 +42,15 @@ class SendCampaignEmailJob implements ShouldQueue
         if (!$email) return;
 
         // Campaign may have been paused/cancelled after this job was queued.
-        if ($email->campaign->status !== 'active') return;
+        if (!in_array($email->campaign->status, ['active', 'scheduled'])) return;
+
+        // A "scheduled" campaign becomes "active" the moment its first email
+        // actually starts sending — not at creation time, and not just
+        // because its start_date arrived (that's still SCHEDULED until real
+        // sending begins).
+        if ($email->campaign->status === 'scheduled') {
+            $service->activateIfScheduled($email->campaign);
+        }
 
         // Already handled (e.g. duplicate dispatch) — don't send twice.
         if (!in_array($email->status, ['scheduled', 'sending'])) return;

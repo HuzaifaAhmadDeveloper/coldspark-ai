@@ -55,9 +55,9 @@ class CampaignSuppressionTest extends TestCase
         $prospect = Prospect::factory()->create();
         $campaign = Campaign::factory()->for($prospect->user)->create();
 
-        $pending1 = CampaignEmail::factory()->for($campaign)->for($prospect)->create(['status' => 'scheduled']);
-        $pending2 = CampaignEmail::factory()->for($campaign)->for($prospect)->create(['status' => 'scheduled']);
-        $alreadySent = CampaignEmail::factory()->for($campaign)->for($prospect)->create(['status' => 'sent']);
+        $pending1 = CampaignEmail::factory()->for($campaign)->for($prospect)->create(['email_number' => 1, 'status' => 'scheduled']);
+        $pending2 = CampaignEmail::factory()->for($campaign)->for($prospect)->create(['email_number' => 2, 'status' => 'scheduled']);
+        $alreadySent = CampaignEmail::factory()->for($campaign)->for($prospect)->create(['email_number' => 3, 'status' => 'sent']);
 
         $cancelled = $service->markUnsubscribed($prospect);
 

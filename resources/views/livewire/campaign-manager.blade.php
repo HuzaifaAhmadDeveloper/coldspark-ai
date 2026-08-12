@@ -62,12 +62,12 @@
             </div>
             @endforeach
         </div>
-        <div class="grid grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-cols-4 gap-4 mb-4">
             @foreach([
                 ['✅', $stats['completed'], 'Completed', 'blue'],
                 ['🔕', $stats['unsubscribed'], 'Unsubscribed', 'gray'],
-                ['📈', $stats['open_rate'].'%', 'Open Rate', 'green'],
-                ['📊', $stats['reply_rate'].'%', 'Reply Rate', 'purple'],
+                ['📬', $stats['delivery_tracking_connected'] ? $stats['delivery_rate'].'%' : '—', 'Delivery Rate', 'green'],
+                ['📈', $stats['delivery_tracking_connected'] ? $stats['open_rate'].'%' : '—', 'Open Rate', 'green'],
             ] as [$icon, $val, $label, $color])
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 text-center">
                 <div class="text-2xl mb-1">{{ $icon }}</div>
@@ -76,6 +76,25 @@
             </div>
             @endforeach
         </div>
+        <div class="grid grid-cols-4 gap-4 mb-8">
+            @foreach([
+                ['🖱️', $stats['delivery_tracking_connected'] ? $stats['click_rate'].'%' : '—', 'Click Rate', 'indigo'],
+                ['📊', $stats['delivery_tracking_connected'] ? $stats['reply_rate'].'%' : '—', 'Reply Rate', 'purple'],
+                ['⚠️', $stats['bounce_rate'].'%', 'Bounce Rate', 'red'],
+                ['🔕', $stats['delivery_tracking_connected'] ? $stats['unsubscribe_rate'].'%' : '—', 'Unsubscribe Rate', 'gray'],
+            ] as [$icon, $val, $label, $color])
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 text-center" @if(!$stats['delivery_tracking_connected'] && $label !== 'Bounce Rate') title="Delivery tracking isn't connected yet (SES event webhook not configured) — this rate can't be calculated." @endif>
+                <div class="text-2xl mb-1">{{ $icon }}</div>
+                <div class="text-2xl font-bold text-{{ $color }}-400">{{ $val }}</div>
+                <div class="text-gray-500 text-xs mt-1">{{ $label }}</div>
+            </div>
+            @endforeach
+        </div>
+        @unless($stats['delivery_tracking_connected'])
+        <div class="bg-yellow-900/30 border border-yellow-800 rounded-xl px-4 py-3 mb-8 text-xs text-yellow-400">
+            ⚠️ Delivery tracking isn't connected yet — Delivery/Open/Click/Reply/Unsubscribe rates show "—" instead of a possibly-misleading 0% until Amazon SES's event webhook is wired up (see setup docs for SES_CONFIGURATION_SET).
+        </div>
+        @endunless
 
         <!-- CAMPAIGNS LIST — each card is inline-expandable -->
         @forelse($campaigns as $campaign)
@@ -90,9 +109,11 @@
                         <h3 class="font-bold text-white text-lg">{{ $campaign->name }}</h3>
                         <span class="text-xs px-2 py-0.5 rounded-full font-bold
                             {{ $campaign->status === 'active' ? 'bg-green-900 text-green-400' :
+                               ($campaign->status === 'scheduled' ? 'bg-purple-900 text-purple-400' :
                                ($campaign->status === 'paused' ? 'bg-yellow-900 text-yellow-400' :
                                ($campaign->status === 'completed' ? 'bg-blue-900 text-blue-400' :
-                               ($campaign->status === 'cancelled' ? 'bg-red-900 text-red-400' : 'bg-gray-700 text-gray-400'))) }}">
+                               ($campaign->status === 'failed' ? 'bg-red-900 text-red-400' :
+                               ($campaign->status === 'cancelled' ? 'bg-red-900 text-red-400' : 'bg-gray-700 text-gray-400'))))) }}">
                             {{ ucfirst($campaign->status) }}
                         </span>
                     </div>
@@ -105,7 +126,7 @@
                     </div>
                 </div>
                 <div class="flex gap-2 items-center">
-                    @if($campaign->status === 'active')
+                    @if(in_array($campaign->status, ['active', 'scheduled']))
                     <button wire:click="pauseCampaign({{ $campaign->id }})"
                         class="text-xs px-3 py-1 bg-yellow-900 hover:bg-yellow-800 text-yellow-300 rounded-lg transition-all">⏸ Pause</button>
                     @elseif($campaign->status === 'paused')
@@ -137,14 +158,14 @@
                         <span class="text-xs text-gray-500">{{ $viewing->total_prospects }} prospects · Started {{ $viewing->start_date?->format('M d, Y') ?? '—' }}</span>
                     </div>
                     <div class="flex gap-2">
-                        @if($viewing->status === 'active')
+                        @if(in_array($viewing->status, ['active', 'scheduled']))
                         <button wire:click="pauseCampaign({{ $viewing->id }})"
                             class="px-3 py-1 bg-yellow-900 hover:bg-yellow-800 text-yellow-300 rounded-lg text-xs font-semibold">⏸ Pause</button>
                         @elseif($viewing->status === 'paused')
                         <button wire:click="resumeCampaign({{ $viewing->id }})"
                             class="px-3 py-1 bg-green-800 hover:bg-green-700 text-green-300 rounded-lg text-xs font-semibold">▶ Resume</button>
                         @endif
-                        @if(in_array($viewing->status, ['active','paused']))
+                        @if(in_array($viewing->status, ['active', 'scheduled', 'paused']))
                         <button wire:click="cancelCampaign({{ $viewing->id }})"
                             class="px-3 py-1 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg text-xs font-semibold">🚫 Cancel</button>
                         @endif
@@ -166,12 +187,29 @@
                 <!-- Tab Content -->
                 <div class="p-5">
                     @if($tab === 'overview')
+                    @php
+                        $trackingConnected = $viewing->emails_sent === 0 || $viewing->emails_delivered > 0;
+                    @endphp
                     <div class="grid grid-cols-4 gap-4 mb-4">
                         @foreach([
                             ['📧', $viewing->emails_sent, 'Sent', 'blue'],
+                            ['📬', $viewing->emails_delivered, 'Delivered', 'green'],
                             ['👁️', $viewing->emails_opened, 'Opened', 'yellow'],
                             ['💬', $viewing->replies_received, 'Replies', 'green'],
-                            ['📈', $viewing->open_rate.'%', 'Open Rate', 'purple'],
+                        ] as [$icon, $val, $label, $color])
+                        <div class="bg-gray-800 rounded-xl p-4 text-center">
+                            <div class="text-xl mb-1">{{ $icon }}</div>
+                            <div class="text-xl font-bold text-{{ $color }}-400">{{ $val }}</div>
+                            <div class="text-gray-500 text-xs mt-1">{{ $label }}</div>
+                        </div>
+                        @endforeach
+                    </div>
+                    <div class="grid grid-cols-4 gap-4 mb-4">
+                        @foreach([
+                            ['🖱️', $viewing->emails_clicked, 'Clicked', 'indigo'],
+                            ['⚠️', $viewing->emails_bounced, 'Bounced', 'red'],
+                            ['🚫', $viewing->cancelled_followups, 'Cancelled Follow-ups', 'gray'],
+                            ['🔕', $viewing->prospects()->where('unsubscribed', true)->distinct('prospects.id')->count('prospects.id'), 'Unsubscribed', 'gray'],
                         ] as [$icon, $val, $label, $color])
                         <div class="bg-gray-800 rounded-xl p-4 text-center">
                             <div class="text-xl mb-1">{{ $icon }}</div>
@@ -182,10 +220,10 @@
                     </div>
                     <div class="grid grid-cols-4 gap-4 mb-5">
                         @foreach([
-                            ['🖱️', $viewing->emails_clicked, 'Clicked', 'indigo'],
-                            ['⚠️', $viewing->emails_bounced, 'Bounced', 'red'],
-                            ['🚫', $viewing->cancelled_followups, 'Cancelled Follow-ups', 'gray'],
-                            ['📊', $viewing->reply_rate.'%', 'Reply Rate', 'purple'],
+                            ['📈', $trackingConnected ? $viewing->open_rate.'%' : '—', 'Open Rate', 'purple'],
+                            ['🖱️', $trackingConnected ? $viewing->click_rate.'%' : '—', 'Click Rate', 'indigo'],
+                            ['📊', $trackingConnected ? $viewing->reply_rate.'%' : '—', 'Reply Rate', 'purple'],
+                            ['⚠️', $viewing->bounce_rate.'%', 'Bounce Rate', 'red'],
                         ] as [$icon, $val, $label, $color])
                         <div class="bg-gray-800 rounded-xl p-4 text-center">
                             <div class="text-xl mb-1">{{ $icon }}</div>

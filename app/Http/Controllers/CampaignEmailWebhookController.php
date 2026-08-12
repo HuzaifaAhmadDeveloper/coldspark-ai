@@ -40,10 +40,24 @@ class CampaignEmailWebhookController extends Controller
         foreach ($events as $event) {
             if (!is_array($event)) continue;
 
+            // Capture SNS's own MessageId before unwrapping — it's only present
+            // on the outer envelope, and it's what makes a redelivered
+            // notification (SNS retries on any non-2xx/timeout) detectable as
+            // the same event rather than a new one. See recordEvent()'s
+            // provider_event_id idempotency check.
+            $providerEventId = is_string($event['MessageId'] ?? null) ? $event['MessageId'] : null;
+
             $event = $this->unwrapSnsEnvelope($event);
             if ($event === null) continue; // e.g. SNS SubscriptionConfirmation — nothing to record
 
-            if ($this->processEvent($event)) $handled++;
+            // Fall back to SES's own IDs if this wasn't an SNS-wrapped payload
+            // (or for extra safety even when it was).
+            $providerEventId ??= $event['bounce']['feedbackId']
+                ?? $event['complaint']['feedbackId']
+                ?? $event['mail']['messageId']
+                ?? null;
+
+            if ($this->processEvent($event, $providerEventId)) $handled++;
         }
 
         Log::info('campaign-events webhook received', ['count' => count($events), 'handled' => $handled]);
@@ -86,7 +100,7 @@ class CampaignEmailWebhookController extends Controller
         return $event;
     }
 
-    private function processEvent(array $event): bool
+    private function processEvent(array $event, ?string $providerEventId = null): bool
     {
         $type = $this->extractEventType($event);
         if (!$type) return false;
@@ -97,7 +111,7 @@ class CampaignEmailWebhookController extends Controller
             return false;
         }
 
-        RecordTrackingEventJob::dispatch($email->tracking_token, $type, ['source' => 'webhook']);
+        RecordTrackingEventJob::dispatch($email->tracking_token, $type, ['source' => 'webhook'], $providerEventId);
         return true;
     }
 
@@ -110,8 +124,9 @@ class CampaignEmailWebhookController extends Controller
         return match (true) {
             str_contains($raw, 'bounce')     => $this->isHardBounce($event) ? 'bounced' : 'soft_bounced',
             str_contains($raw, 'complaint')  => 'complaint',
-            str_contains($raw, 'deliver')    => 'delivered', // SES notificationType "Delivery"
-            str_contains($raw, 'reply')      => 'replied',
+            str_contains($raw, 'deliver')    => 'delivered',  // SES notificationType "Delivery"
+            str_contains($raw, 'received')   => 'replied',    // SES inbound receiving: notificationType "Received"
+            str_contains($raw, 'reply')      => 'replied',    // Mailgun/SendGrid-shaped inbound payloads
             str_contains($raw, 'inbound')    => 'replied',
             default                          => null,
         };
@@ -154,16 +169,69 @@ class CampaignEmailWebhookController extends Controller
             if ($email) return $email;
         }
 
-        // Plus-addressed inbound replies: reply+{token}@{domain}
-        $recipient = $event['recipient'] ?? $event['To'] ?? $event['to'] ?? '';
-        if (is_string($recipient) && preg_match('/reply\+([a-zA-Z0-9]+)@/', $recipient, $m)) {
-            return CampaignEmail::where('tracking_token', $m[1])->first();
+        // Plus-addressed inbound replies: reply+{token}@{domain}. Mailgun/SendGrid
+        // give a single "recipient"/"to" string; SES inbound receiving gives an
+        // array of addresses at mail.destination (and duplicates it at
+        // receipt.recipients) since a message can technically have multiple
+        // recipients — check every shape.
+        $candidates = array_filter([
+            $event['recipient'] ?? null,
+            $event['To'] ?? null,
+            $event['to'] ?? null,
+            ...(is_array($event['mail']['destination'] ?? null) ? $event['mail']['destination'] : []),
+            ...(is_array($event['receipt']['recipients'] ?? null) ? $event['receipt']['recipients'] : []),
+        ]);
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && preg_match('/reply\+([a-zA-Z0-9]+)@/', $candidate, $m)) {
+                $email = CampaignEmail::where('tracking_token', $m[1])->first();
+                if ($email) return $email;
+            }
         }
 
         // Custom headers echoed back by the ESP (SES/Mailgun/SendGrid all support this).
-        $headerBlob = json_encode($event['headers'] ?? $event['message-headers'] ?? $event['mail']['headers'] ?? []);
-        if ($headerBlob && preg_match('/X-Campaign-Email-Id["\s:,]+(\d+)/i', $headerBlob, $m)) {
-            return CampaignEmail::find((int) $m[1]);
+        $campaignEmailId = $this->findCampaignEmailIdFromHeaders(
+            $event['headers'] ?? $event['message-headers'] ?? $event['mail']['headers'] ?? null
+        );
+        if ($campaignEmailId) {
+            $email = CampaignEmail::find($campaignEmailId);
+            if ($email) return $email;
+        }
+
+        return null;
+    }
+
+    /**
+     * Finds our X-Campaign-Email-Id custom header (set in
+     * CampaignEmailMailable::headers()) in whatever shape the ESP echoes
+     * headers back in. SES gives an array of {"name": ..., "value": ...}
+     * objects; Mailgun/some others give [name, value] pairs. A naive
+     * json_encode+regex blob match (the original implementation) doesn't
+     * actually match either structured shape — it only worked for a flat
+     * "Name: value" string nobody's webhook actually sends.
+     */
+    private function findCampaignEmailIdFromHeaders(mixed $headers): ?int
+    {
+        if (is_array($headers)) {
+            foreach ($headers as $header) {
+                if (!is_array($header)) continue;
+
+                // SES: {"name": "X-Campaign-Email-Id", "value": "5"}
+                if (isset($header['name'], $header['value']) && strcasecmp((string) $header['name'], 'X-Campaign-Email-Id') === 0) {
+                    return (int) $header['value'];
+                }
+
+                // Mailgun-style: ["X-Campaign-Email-Id", "5"]
+                if (isset($header[0], $header[1]) && strcasecmp((string) $header[0], 'X-Campaign-Email-Id') === 0) {
+                    return (int) $header[1];
+                }
+            }
+        }
+
+        // Fallback for a flat string blob, e.g. "X-Campaign-Email-Id: 5\r\n..."
+        $blob = is_string($headers) ? $headers : (is_array($headers) ? json_encode($headers) : '');
+        if ($blob && preg_match('/X-Campaign-Email-Id["\s:]+(\d+)/i', $blob, $m)) {
+            return (int) $m[1];
         }
 
         return null;

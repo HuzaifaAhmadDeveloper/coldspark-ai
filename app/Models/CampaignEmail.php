@@ -55,14 +55,16 @@ class CampaignEmail extends Model
 
     /**
      * Emails that are due for sending: status=scheduled, scheduled_at <= now,
-     * and belonging to an active campaign.
+     * and belonging to a campaign that's either already active or whose
+     * scheduled start has now arrived (SendCampaignEmailJob flips a
+     * "scheduled" campaign to "active" the moment its first email actually sends).
      */
     public function scopeDueForSending(Builder $query): Builder
     {
         return $query
             ->where('status', 'scheduled')
             ->where('scheduled_at', '<=', now())
-            ->whereHas('campaign', fn (Builder $q) => $q->where('status', 'active'));
+            ->whereHas('campaign', fn (Builder $q) => $q->whereIn('status', ['active', 'scheduled']));
     }
 
     /**
