@@ -33,8 +33,16 @@ class CampaignEmailWebhookController extends Controller
             return response()->json(['error' => 'unauthorized'], 403);
         }
 
-        $payload = $request->all();
-        $events  = array_is_list($payload) ? $payload : [$payload];
+        // AWS SNS posts its webhook bodies with Content-Type: text/plain (a
+        // well-documented AWS quirk), not application/json — $request->all()
+        // only parses JSON when the Content-Type header says to, so it would
+        // silently miss the entire SNS payload. Decode the raw body directly
+        // instead, which works regardless of the declared Content-Type.
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload) || empty($payload)) {
+            $payload = $request->all();
+        }
+        $events = array_is_list($payload) ? $payload : [$payload];
 
         $handled = 0;
         foreach ($events as $event) {

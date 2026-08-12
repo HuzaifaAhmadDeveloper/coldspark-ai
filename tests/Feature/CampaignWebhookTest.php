@@ -157,6 +157,32 @@ class CampaignWebhookTest extends TestCase
         $this->assertSame('skipped', $followup->fresh()->status);
     }
 
+    public function test_sns_payload_is_parsed_even_with_text_plain_content_type(): void
+    {
+        // AWS SNS posts webhook bodies as Content-Type: text/plain, not
+        // application/json — postJson() above sends the correct header and
+        // would mask this exact bug, so this test deliberately doesn't use it.
+        $email = CampaignEmail::factory()->create(['status' => 'sent']);
+
+        $payload = $this->snsNotification([
+            'notificationType' => 'Delivery',
+            'mail' => ['messageId' => 'abc123', 'headers' => [
+                ['name' => 'X-Campaign-Email-Id', 'value' => (string) $email->id],
+            ]],
+        ]);
+
+        $response = $this->call(
+            'POST',
+            '/webhooks/campaign-events?key=test-secret',
+            [], [], [], ['CONTENT_TYPE' => 'text/plain'],
+            json_encode($payload)
+        );
+
+        $response->assertOk();
+        $response->assertJson(['received' => 1, 'handled' => 1]);
+        $this->assertTrue($email->fresh()->delivered);
+    }
+
     public function test_sns_subscription_confirmation_is_logged_and_not_treated_as_an_event(): void
     {
         $payload = [
